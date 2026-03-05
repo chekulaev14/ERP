@@ -86,7 +86,7 @@ export function PartDetail({ part, onSubmit }: PartDetailProps) {
       <div className="bg-zinc-800 rounded-lg p-2.5 border border-zinc-700">
         <h2 className="text-white text-sm font-medium mb-0.5">{part.name}</h2>
         <p className="text-zinc-400 text-xs">{part.description}</p>
-        <p className="text-emerald-400 text-xs mt-1">Расценка: {part.pricePerUnit} ₽/шт</p>
+        <p className="text-emerald-400 text-xs mt-1">Оплата за 1 ед.: {part.pricePerUnit} ₽</p>
       </div>
 
       {submitted ? (

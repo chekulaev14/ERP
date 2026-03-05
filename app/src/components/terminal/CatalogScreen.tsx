@@ -147,7 +147,6 @@ export function CatalogScreen({ workerName, onLogout, onSubmit }: CatalogScreenP
                   </div>
                   <div className="p-1.5">
                     <h3 className="text-white font-medium text-[11px]">{part.name}</h3>
-                    <p className="text-emerald-400 text-[10px]">{part.pricePerUnit} ₽/шт</p>
                   </div>
                 </Card>
               ))}
