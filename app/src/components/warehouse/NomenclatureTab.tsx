@@ -40,7 +40,21 @@ export function NomenclatureTab({ items, balances }: Props) {
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<ItemType | "all">("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
-  const [selectedItem, setSelectedItem] = useState<NomenclatureItem | null>(null);
+  const [navStack, setNavStack] = useState<NomenclatureItem[]>([]);
+
+  const selectedItem = navStack.length > 0 ? navStack[navStack.length - 1] : null;
+
+  const handleNavigate = (item: NomenclatureItem) => {
+    setNavStack((prev) => [...prev, item]);
+  };
+
+  const handleBreadcrumb = (index: number) => {
+    setNavStack((prev) => prev.slice(0, index + 1));
+  };
+
+  const handleBackToList = () => {
+    setNavStack([]);
+  };
 
   const filtered = useMemo(() => {
     let result = items;
@@ -77,14 +91,31 @@ export function NomenclatureTab({ items, balances }: Props) {
   if (selectedItem) {
     return (
       <div>
-        <Button
-          variant="ghost"
-          className="text-muted-foreground hover:text-foreground mb-3 text-xs px-2 h-7"
-          onClick={() => setSelectedItem(null)}
-        >
-          ← Назад к списку
-        </Button>
-        <BomView item={selectedItem} balances={balances} onNavigate={setSelectedItem} items={items} />
+        {/* Хлебные крошки */}
+        <div className="flex items-center gap-1 mb-3 flex-wrap">
+          <button
+            className="text-muted-foreground hover:text-foreground text-xs transition-colors"
+            onClick={handleBackToList}
+          >
+            Номенклатура
+          </button>
+          {navStack.map((item, i) => (
+            <span key={`${item.id}-${i}`} className="flex items-center gap-1">
+              <span className="text-muted-foreground/50 text-xs">/</span>
+              {i < navStack.length - 1 ? (
+                <button
+                  className="text-muted-foreground hover:text-foreground text-xs transition-colors"
+                  onClick={() => handleBreadcrumb(i)}
+                >
+                  {item.name}
+                </button>
+              ) : (
+                <span className="text-foreground text-xs font-medium">{item.name}</span>
+              )}
+            </span>
+          ))}
+        </div>
+        <BomView item={selectedItem} balances={balances} onNavigate={handleNavigate} items={items} />
       </div>
     );
   }
@@ -153,7 +184,7 @@ export function NomenclatureTab({ items, balances }: Props) {
               <TableRow
                 key={item.id}
                 className="border-border/50 cursor-pointer hover:bg-accent/50"
-                onClick={() => setSelectedItem(item)}
+                onClick={() => handleNavigate(item)}
               >
                 <TableCell className="py-1.5">
                   <div>

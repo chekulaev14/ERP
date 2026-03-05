@@ -8,6 +8,7 @@ import {
   type ItemType,
   itemTypeLabels,
   unitLabels,
+  getChildren,
 } from "@/data/nomenclature";
 
 interface BomChild {
@@ -48,6 +49,14 @@ export function BomView({ item, balances, onNavigate, items }: Props) {
 
   const balance = balances[item.id] ?? 0;
 
+  // Расчёт "можно собрать" для позиций с детьми
+  const canAssemble = !loading && children.length > 0
+    ? Math.min(...children.map((c) => {
+        const available = balances[c.item.id] ?? 0;
+        return c.quantity > 0 ? Math.floor(available / c.quantity) : 0;
+      }))
+    : null;
+
   return (
     <div className="space-y-4 max-w-2xl">
       {/* Карточка позиции */}
@@ -73,11 +82,19 @@ export function BomView({ item, balances, onNavigate, items }: Props) {
             )}
             <div className="flex items-center gap-4 mt-2">
               <div>
-                <span className="text-muted-foreground/70 text-[10px]">Остаток:</span>
+                <span className="text-muted-foreground/70 text-[10px]">На складе:</span>
                 <span className="text-foreground text-sm font-semibold ml-1">
                   {formatNumber(balance)} {unitLabels[item.unit]}
                 </span>
               </div>
+              {canAssemble !== null && (
+                <div>
+                  <span className="text-muted-foreground/70 text-[10px]">Можно собрать:</span>
+                  <span className={`text-sm font-semibold ml-1 ${canAssemble > 0 ? "text-emerald-500" : "text-destructive"}`}>
+                    {canAssemble} шт
+                  </span>
+                </div>
+              )}
               {item.pricePerUnit && (
                 <div>
                   <span className="text-muted-foreground/70 text-[10px]">Расценка:</span>
@@ -102,6 +119,13 @@ export function BomView({ item, balances, onNavigate, items }: Props) {
               <div className="space-y-1">
                 {children.map((child) => {
                   const childBalance = balances[child.item.id] ?? 0;
+                  const childChildren = getChildren(child.item.id);
+                  const childCanAssemble = childChildren.length > 0
+                    ? Math.min(...childChildren.map((cc) => {
+                        const av = balances[cc.item.id] ?? 0;
+                        return cc.quantity > 0 ? Math.floor(av / cc.quantity) : 0;
+                      }))
+                    : null;
                   return (
                     <div
                       key={child.item.id}
@@ -115,6 +139,11 @@ export function BomView({ item, balances, onNavigate, items }: Props) {
                         <span className="text-foreground text-xs truncate">{child.item.name}</span>
                       </div>
                       <div className="flex items-center gap-3 shrink-0 ml-3">
+                        {childCanAssemble !== null && (
+                          <span className={`text-[10px] font-mono ${childCanAssemble > 0 ? "text-emerald-500" : "text-destructive"}`}>
+                            собрать: {childCanAssemble}
+                          </span>
+                        )}
                         <span className="text-muted-foreground text-xs font-mono">
                           ×{formatNumber(child.quantity)} {unitLabels[child.item.unit]}
                         </span>
