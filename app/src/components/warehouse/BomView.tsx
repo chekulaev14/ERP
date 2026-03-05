@@ -21,11 +21,11 @@ interface Props {
 }
 
 const typeColors: Record<ItemType, string> = {
-  material: "bg-amber-900/50 text-amber-300 border-amber-700",
-  blank: "bg-orange-900/50 text-orange-300 border-orange-700",
-  part: "bg-blue-900/50 text-blue-300 border-blue-700",
-  subassembly: "bg-purple-900/50 text-purple-300 border-purple-700",
-  product: "bg-emerald-900/50 text-emerald-300 border-emerald-700",
+  material: "bg-amber-100 text-amber-800 border-amber-300",
+  blank: "bg-orange-100 text-orange-800 border-orange-300",
+  part: "bg-blue-100 text-blue-800 border-blue-300",
+  subassembly: "bg-purple-100 text-purple-800 border-purple-300",
+  product: "bg-emerald-100 text-emerald-800 border-emerald-300",
 };
 
 export function BomView({ item, balances }: Props) {
@@ -68,7 +68,7 @@ export function BomView({ item, balances }: Props) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <h2 className="text-foreground text-sm font-semibold">{item.name}</h2>
-              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${typeColors[item.type]}`}>
+              <Badge variant="outline" className={`text-xs px-2 py-0.5 ${typeColors[item.type]}`}>
                 {itemTypeLabels[item.type]}
               </Badge>
             </div>
@@ -128,7 +128,7 @@ export function BomView({ item, balances }: Props) {
                       className="bg-card/60 rounded border border-border/50 px-3 py-2 flex items-center justify-between"
                     >
                       <div className="flex items-center gap-2 min-w-0">
-                        <Badge variant="outline" className={`text-[9px] px-1 py-0 shrink-0 ${typeColors[child.item.type]}`}>
+                        <Badge variant="outline" className={`text-[11px] px-1.5 py-0.5 shrink-0 ${typeColors[child.item.type]}`}>
                           {itemTypeLabels[child.item.type]}
                         </Badge>
                         <span className="text-foreground text-xs truncate">{child.item.name}</span>
@@ -166,7 +166,7 @@ export function BomView({ item, balances }: Props) {
                     className="bg-card/60 rounded border border-border/50 px-3 py-2 flex items-center justify-between"
                   >
                     <div className="flex items-center gap-2 min-w-0">
-                      <Badge variant="outline" className={`text-[9px] px-1 py-0 shrink-0 ${typeColors[parent.item.type]}`}>
+                      <Badge variant="outline" className={`text-[11px] px-1.5 py-0.5 shrink-0 ${typeColors[parent.item.type]}`}>
                         {itemTypeLabels[parent.item.type]}
                       </Badge>
                       <span className="text-foreground text-xs truncate">{parent.item.name}</span>
