@@ -21,7 +21,8 @@ export interface Category {
   products: Product[];
 }
 
-const img = (name: string) => `/images/catalog/${name}`;
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+const img = (name: string) => `${basePath}/images/catalog/${name}`;
 
 export const categories: Category[] = [
   {
