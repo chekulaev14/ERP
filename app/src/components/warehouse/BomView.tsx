@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   type NomenclatureItem,
   type ItemType,
@@ -19,8 +18,6 @@ interface BomChild {
 interface Props {
   item: NomenclatureItem;
   balances: Record<string, number>;
-  onNavigate: (item: NomenclatureItem) => void;
-  items: NomenclatureItem[];
 }
 
 const typeColors: Record<ItemType, string> = {
@@ -31,7 +28,7 @@ const typeColors: Record<ItemType, string> = {
   product: "bg-emerald-900/50 text-emerald-300 border-emerald-700",
 };
 
-export function BomView({ item, balances, onNavigate, items }: Props) {
+export function BomView({ item, balances }: Props) {
   const [children, setChildren] = useState<BomChild[]>([]);
   const [parents, setParents] = useState<BomChild[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,7 +46,6 @@ export function BomView({ item, balances, onNavigate, items }: Props) {
 
   const balance = balances[item.id] ?? 0;
 
-  // Расчёт "можно собрать" для позиций с детьми
   const canAssemble = !loading && children.length > 0
     ? Math.min(...children.map((c) => {
         const available = balances[c.item.id] ?? 0;
@@ -129,8 +125,7 @@ export function BomView({ item, balances, onNavigate, items }: Props) {
                   return (
                     <div
                       key={child.item.id}
-                      className="bg-card/60 rounded border border-border/50 px-3 py-2 flex items-center justify-between cursor-pointer hover:bg-accent transition-colors"
-                      onClick={() => onNavigate(child.item)}
+                      className="bg-card/60 rounded border border-border/50 px-3 py-2 flex items-center justify-between"
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <Badge variant="outline" className={`text-[9px] px-1 py-0 shrink-0 ${typeColors[child.item.type]}`}>
@@ -168,8 +163,7 @@ export function BomView({ item, balances, onNavigate, items }: Props) {
                 {parents.map((parent) => (
                   <div
                     key={parent.item.id}
-                    className="bg-card/60 rounded border border-border/50 px-3 py-2 flex items-center justify-between cursor-pointer hover:bg-accent transition-colors"
-                    onClick={() => onNavigate(parent.item)}
+                    className="bg-card/60 rounded border border-border/50 px-3 py-2 flex items-center justify-between"
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <Badge variant="outline" className={`text-[9px] px-1 py-0 shrink-0 ${typeColors[parent.item.type]}`}>

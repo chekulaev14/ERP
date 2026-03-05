@@ -1,7 +1,5 @@
-"use client";
-
-import { WarehousePanel } from "@/components/warehouse/WarehousePanel";
+import { redirect } from "next/navigation";
 
 export default function WarehousePage() {
-  return <WarehousePanel />;
+  redirect("/warehouse/nomenclature");
 }
