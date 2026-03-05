@@ -31,6 +31,17 @@
 - [PLAN.md](PLAN.md) — план разработки по этапам
 - [SPEC.md](SPEC.md) — техническая спецификация
 
+## Разработка и деплой
+
+- Все изменения — только локально. Не редактировать код на сервере.
+- GitHub: chekulaev14/Gorchev-V (публичный)
+- VPS: 82.22.47.114, папка /root/gorchev-v/, порт 8080
+- Автодеплой: push в main → webhook → билд и перезапуск на VPS
+- pm2 процесс: gorchev-v (порт 3000), nginx проксирует 8080 → 3000
+
 ## Структура проекта
 
-(будет заполняться по мере развития)
+- [app/](app/) — Next.js приложение
+- [app/src/components/terminal/](app/src/components/terminal/) — компоненты терминала (PIN, каталог, детали)
+- [app/src/data/](app/src/data/) — данные каталога
+- [app/src/components/ui/](app/src/components/ui/) — shadcn/ui компоненты
