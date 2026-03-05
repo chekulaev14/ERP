@@ -135,7 +135,7 @@ export function OperationsTab({ items, balances, onRefresh }: Props) {
             key={t}
             variant="ghost"
             size="sm"
-            className={`text-xs h-8 px-3 ${opType === t ? "bg-zinc-700 text-white" : "text-zinc-400"}`}
+            className={`text-xs h-8 px-3 ${opType === t ? "bg-accent text-foreground" : "text-muted-foreground"}`}
             onClick={() => {
               setOpType(t);
               setSelectedItemId("");
@@ -149,22 +149,22 @@ export function OperationsTab({ items, balances, onRefresh }: Props) {
       </div>
 
       {/* Форма */}
-      <div className="bg-zinc-800 rounded-lg border border-zinc-700 p-4 space-y-3">
-        <h3 className="text-white text-sm font-medium">{opLabels[opType]}</h3>
+      <div className="bg-card rounded-lg border border-border p-4 space-y-3">
+        <h3 className="text-foreground text-sm font-medium">{opLabels[opType]}</h3>
 
         {/* Выбор позиции */}
         <div className="relative">
-          <label className="text-zinc-400 text-xs block mb-1">Позиция</label>
+          <label className="text-muted-foreground text-xs block mb-1">Позиция</label>
           {selectedItem ? (
-            <div className="flex items-center gap-2 bg-zinc-900 rounded px-3 py-2 border border-zinc-600">
+            <div className="flex items-center gap-2 bg-background rounded px-3 py-2 border border-border">
               <Badge variant="outline" className={`text-[9px] px-1 py-0 ${typeColors[selectedItem.type]}`}>
                 {itemTypeLabels[selectedItem.type]}
               </Badge>
-              <span className="text-white text-xs flex-1">{selectedItem.name}</span>
+              <span className="text-foreground text-xs flex-1">{selectedItem.name}</span>
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-zinc-500 text-xs h-5 px-1"
+                className="text-muted-foreground/70 text-xs h-5 px-1"
                 onClick={() => {
                   setSelectedItemId("");
                   setItemSearch("");
@@ -183,14 +183,14 @@ export function OperationsTab({ items, balances, onRefresh }: Props) {
                   setShowDropdown(true);
                 }}
                 onFocus={() => setShowDropdown(true)}
-                className="bg-zinc-900 border-zinc-600 text-white text-xs h-8"
+                className="bg-background border-border text-foreground text-xs h-8"
               />
               {showDropdown && filteredItems.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-zinc-800 border border-zinc-600 rounded-lg max-h-48 overflow-y-auto shadow-lg">
+                <div className="absolute z-10 w-full mt-1 bg-card border border-border rounded-lg max-h-48 overflow-y-auto shadow-lg">
                   {filteredItems.slice(0, 20).map((item) => (
                     <div
                       key={item.id}
-                      className="px-3 py-1.5 hover:bg-zinc-700 cursor-pointer flex items-center gap-2"
+                      className="px-3 py-1.5 hover:bg-accent cursor-pointer flex items-center gap-2"
                       onClick={() => {
                         setSelectedItemId(item.id);
                         setItemSearch("");
@@ -200,8 +200,8 @@ export function OperationsTab({ items, balances, onRefresh }: Props) {
                       <Badge variant="outline" className={`text-[9px] px-1 py-0 shrink-0 ${typeColors[item.type]}`}>
                         {itemTypeLabels[item.type]}
                       </Badge>
-                      <span className="text-white text-xs truncate">{item.name}</span>
-                      <span className="text-zinc-500 text-[10px] ml-auto shrink-0">
+                      <span className="text-foreground text-xs truncate">{item.name}</span>
+                      <span className="text-muted-foreground/70 text-[10px] ml-auto shrink-0">
                         {formatNumber(balances[item.id] ?? 0)} {unitLabels[item.unit]}
                       </span>
                     </div>
@@ -214,7 +214,7 @@ export function OperationsTab({ items, balances, onRefresh }: Props) {
 
         {/* Количество */}
         <div>
-          <label className="text-zinc-400 text-xs block mb-1">
+          <label className="text-muted-foreground text-xs block mb-1">
             Количество{selectedItem ? ` (${unitLabels[selectedItem.unit]})` : ""}
           </label>
           <Input
@@ -224,18 +224,18 @@ export function OperationsTab({ items, balances, onRefresh }: Props) {
             placeholder="0"
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
-            className="bg-zinc-900 border-zinc-600 text-white text-xs h-8 max-w-32"
+            className="bg-background border-border text-foreground text-xs h-8 max-w-32"
           />
         </div>
 
         {/* Рабочий (только для прихода с производства) */}
         {opType === "production" && (
           <div>
-            <label className="text-zinc-400 text-xs block mb-1">Рабочий</label>
+            <label className="text-muted-foreground text-xs block mb-1">Рабочий</label>
             <select
               value={workerId}
               onChange={(e) => setWorkerId(e.target.value)}
-              className="bg-zinc-900 border border-zinc-600 text-white text-xs rounded px-3 py-1.5 w-full"
+              className="bg-background border border-border text-foreground text-xs rounded px-3 py-1.5 w-full"
             >
               <option value="">Выберите рабочего</option>
               {workers.map((w) => (
@@ -247,27 +247,27 @@ export function OperationsTab({ items, balances, onRefresh }: Props) {
 
         {/* Комментарий */}
         <div>
-          <label className="text-zinc-400 text-xs block mb-1">Комментарий</label>
+          <label className="text-muted-foreground text-xs block mb-1">Комментарий</label>
           <Textarea
             placeholder="Необязательно"
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            className="bg-zinc-900 border-zinc-600 text-white text-xs min-h-[60px] resize-none"
+            className="bg-background border-border text-foreground text-xs min-h-[60px] resize-none"
           />
         </div>
 
         {/* Предпросмотр сборки */}
         {opType === "assembly" && assemblyPreview.length > 0 && quantity && Number(quantity) > 0 && (
-          <div className="bg-zinc-900 rounded border border-zinc-600 p-3">
-            <p className="text-zinc-400 text-[10px] font-medium mb-1.5">Будет списано:</p>
+          <div className="bg-background rounded border border-border p-3">
+            <p className="text-muted-foreground text-[10px] font-medium mb-1.5">Будет списано:</p>
             {assemblyPreview.map((child) => {
               const needed = child.quantity * Number(quantity);
               const available = balances[child.item.id] ?? 0;
               const enough = available >= needed;
               return (
                 <div key={child.item.id} className="flex items-center justify-between py-0.5">
-                  <span className="text-zinc-300 text-[11px]">{child.item.name}</span>
-                  <span className={`text-[11px] font-mono ${enough ? "text-zinc-400" : "text-red-400"}`}>
+                  <span className="text-muted-foreground text-[11px]">{child.item.name}</span>
+                  <span className={`text-[11px] font-mono ${enough ? "text-muted-foreground" : "text-destructive"}`}>
                     {formatNumber(needed)} {unitLabels[child.item.unit]}
                     {!enough && ` (есть ${formatNumber(available)})`}
                   </span>
@@ -281,8 +281,8 @@ export function OperationsTab({ items, balances, onRefresh }: Props) {
         {result && (
           <div className={`rounded p-3 text-xs ${
             result.success
-              ? "bg-emerald-900/30 border border-emerald-700 text-emerald-300"
-              : "bg-red-900/30 border border-red-700 text-red-300"
+              ? "bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300"
+              : "bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300"
           }`}>
             <p>{result.message}</p>
             {result.shortages && (

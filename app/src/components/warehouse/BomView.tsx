@@ -51,36 +51,36 @@ export function BomView({ item, balances, onNavigate, items }: Props) {
   return (
     <div className="space-y-4 max-w-2xl">
       {/* Карточка позиции */}
-      <div className="bg-zinc-800 rounded-lg border border-zinc-700 p-4">
+      <div className="bg-card rounded-lg border border-border p-4">
         <div className="flex items-start gap-3">
           {item.images && item.images.length > 0 && (
             <img
               src={item.images[0]}
               alt={item.name}
-              className="w-20 h-20 object-cover rounded-lg border border-zinc-600"
+              className="w-20 h-20 object-cover rounded-lg border border-border"
             />
           )}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <h2 className="text-white text-sm font-semibold">{item.name}</h2>
+              <h2 className="text-foreground text-sm font-semibold">{item.name}</h2>
               <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${typeColors[item.type]}`}>
                 {itemTypeLabels[item.type]}
               </Badge>
             </div>
-            <p className="text-zinc-500 text-[10px] font-mono mb-1">{item.id}</p>
+            <p className="text-muted-foreground/70 text-[10px] font-mono mb-1">{item.id}</p>
             {item.description && (
-              <p className="text-zinc-400 text-xs">{item.description}</p>
+              <p className="text-muted-foreground text-xs">{item.description}</p>
             )}
             <div className="flex items-center gap-4 mt-2">
               <div>
-                <span className="text-zinc-500 text-[10px]">Остаток:</span>
-                <span className="text-white text-sm font-semibold ml-1">
+                <span className="text-muted-foreground/70 text-[10px]">Остаток:</span>
+                <span className="text-foreground text-sm font-semibold ml-1">
                   {formatNumber(balance)} {unitLabels[item.unit]}
                 </span>
               </div>
               {item.pricePerUnit && (
                 <div>
-                  <span className="text-zinc-500 text-[10px]">Расценка:</span>
+                  <span className="text-muted-foreground/70 text-[10px]">Расценка:</span>
                   <span className="text-emerald-400 text-sm ml-1">{item.pricePerUnit} ₽</span>
                 </div>
               )}
@@ -90,13 +90,13 @@ export function BomView({ item, balances, onNavigate, items }: Props) {
       </div>
 
       {loading ? (
-        <p className="text-zinc-500 text-xs">Загрузка спецификации...</p>
+        <p className="text-muted-foreground/70 text-xs">Загрузка спецификации...</p>
       ) : (
         <>
           {/* Из чего состоит */}
           {children.length > 0 && (
             <div>
-              <h3 className="text-zinc-300 text-xs font-medium mb-2">
+              <h3 className="text-muted-foreground text-xs font-medium mb-2">
                 Состав (из чего делается) — {children.length} поз.
               </h3>
               <div className="space-y-1">
@@ -105,20 +105,20 @@ export function BomView({ item, balances, onNavigate, items }: Props) {
                   return (
                     <div
                       key={child.item.id}
-                      className="bg-zinc-800/60 rounded border border-zinc-700/50 px-3 py-2 flex items-center justify-between cursor-pointer hover:bg-zinc-800 transition-colors"
+                      className="bg-card/60 rounded border border-border/50 px-3 py-2 flex items-center justify-between cursor-pointer hover:bg-accent transition-colors"
                       onClick={() => onNavigate(child.item)}
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <Badge variant="outline" className={`text-[9px] px-1 py-0 shrink-0 ${typeColors[child.item.type]}`}>
                           {itemTypeLabels[child.item.type]}
                         </Badge>
-                        <span className="text-white text-xs truncate">{child.item.name}</span>
+                        <span className="text-foreground text-xs truncate">{child.item.name}</span>
                       </div>
                       <div className="flex items-center gap-3 shrink-0 ml-3">
-                        <span className="text-zinc-300 text-xs font-mono">
+                        <span className="text-muted-foreground text-xs font-mono">
                           ×{formatNumber(child.quantity)} {unitLabels[child.item.unit]}
                         </span>
-                        <span className={`text-xs font-mono ${childBalance > 0 ? "text-zinc-400" : "text-red-400"}`}>
+                        <span className={`text-xs font-mono ${childBalance > 0 ? "text-muted-foreground" : "text-destructive"}`}>
                           (ост: {formatNumber(childBalance)})
                         </span>
                       </div>
@@ -132,23 +132,23 @@ export function BomView({ item, balances, onNavigate, items }: Props) {
           {/* Куда входит */}
           {parents.length > 0 && (
             <div>
-              <h3 className="text-zinc-300 text-xs font-medium mb-2">
+              <h3 className="text-muted-foreground text-xs font-medium mb-2">
                 Входит в состав — {parents.length} поз.
               </h3>
               <div className="space-y-1">
                 {parents.map((parent) => (
                   <div
                     key={parent.item.id}
-                    className="bg-zinc-800/60 rounded border border-zinc-700/50 px-3 py-2 flex items-center justify-between cursor-pointer hover:bg-zinc-800 transition-colors"
+                    className="bg-card/60 rounded border border-border/50 px-3 py-2 flex items-center justify-between cursor-pointer hover:bg-accent transition-colors"
                     onClick={() => onNavigate(parent.item)}
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <Badge variant="outline" className={`text-[9px] px-1 py-0 shrink-0 ${typeColors[parent.item.type]}`}>
                         {itemTypeLabels[parent.item.type]}
                       </Badge>
-                      <span className="text-white text-xs truncate">{parent.item.name}</span>
+                      <span className="text-foreground text-xs truncate">{parent.item.name}</span>
                     </div>
-                    <span className="text-zinc-400 text-xs font-mono shrink-0 ml-3">
+                    <span className="text-muted-foreground text-xs font-mono shrink-0 ml-3">
                       нужно ×{formatNumber(parent.quantity)} {unitLabels[item.unit]}
                     </span>
                   </div>
@@ -158,7 +158,7 @@ export function BomView({ item, balances, onNavigate, items }: Props) {
           )}
 
           {children.length === 0 && parents.length === 0 && (
-            <p className="text-zinc-500 text-xs">Нет связей в спецификации</p>
+            <p className="text-muted-foreground/70 text-xs">Нет связей в спецификации</p>
           )}
         </>
       )}

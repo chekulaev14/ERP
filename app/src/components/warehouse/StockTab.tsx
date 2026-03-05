@@ -121,11 +121,11 @@ export function StockTab({ items, balances, onRefresh }: Props) {
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-zinc-300 text-sm font-medium">Возможность сборки</h3>
+          <h3 className="text-muted-foreground text-sm font-medium">Возможность сборки</h3>
           <Button
             variant="ghost"
             size="sm"
-            className="text-zinc-400 text-xs h-7"
+            className="text-muted-foreground text-xs h-7"
             onClick={() => setShowAssembly(false)}
           >
             ← Назад к остаткам
@@ -141,20 +141,20 @@ export function StockTab({ items, balances, onRefresh }: Props) {
             return (
               <div
                 key={item.id}
-                className="bg-zinc-800 rounded-lg border border-zinc-700 p-3"
+                className="bg-card rounded-lg border border-border p-3"
               >
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className={`text-[9px] px-1 py-0 ${typeColors[item.type]}`}>
                       {itemTypeLabels[item.type]}
                     </Badge>
-                    <span className="text-white text-xs font-medium">{item.name}</span>
+                    <span className="text-foreground text-xs font-medium">{item.name}</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-zinc-400 text-xs">
-                      На складе: <span className="text-white font-mono">{stock}</span>
+                    <span className="text-muted-foreground text-xs">
+                      На складе: <span className="text-foreground font-mono">{stock}</span>
                     </span>
-                    <span className={`text-xs font-mono ${canMake > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    <span className={`text-xs font-mono ${canMake > 0 ? "text-emerald-400" : "text-destructive"}`}>
                       Можно собрать: {canMake}
                     </span>
                   </div>
@@ -162,9 +162,9 @@ export function StockTab({ items, balances, onRefresh }: Props) {
 
                 {deficit && (
                   <div className="mt-2 space-y-0.5">
-                    <p className="text-red-400 text-[10px] font-medium">Не хватает для 1 шт:</p>
+                    <p className="text-destructive text-[10px] font-medium">Не хватает для 1 шт:</p>
                     {deficit.map((d) => (
-                      <p key={d.name} className="text-zinc-400 text-[10px] pl-2">
+                      <p key={d.name} className="text-muted-foreground text-[10px] pl-2">
                         {d.name}: нужно {formatNumber(d.needed)}, есть {formatNumber(d.available)}
                       </p>
                     ))}
@@ -185,7 +185,7 @@ export function StockTab({ items, balances, onRefresh }: Props) {
           placeholder="Поиск..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500 text-xs h-8 max-w-xs"
+          className="bg-card border-border text-foreground placeholder:text-muted-foreground text-xs h-8 max-w-xs"
         />
 
         <div className="flex gap-1">
@@ -194,7 +194,7 @@ export function StockTab({ items, balances, onRefresh }: Props) {
               key={t}
               variant="ghost"
               size="sm"
-              className={`text-xs h-7 px-2 ${filterType === t ? "bg-zinc-700 text-white" : "text-zinc-400"}`}
+              className={`text-xs h-7 px-2 ${filterType === t ? "bg-accent text-foreground" : "text-muted-foreground"}`}
               onClick={() => setFilterType(t)}
             >
               {t === "all" ? "Все" : itemTypeLabels[t]}
@@ -205,7 +205,7 @@ export function StockTab({ items, balances, onRefresh }: Props) {
         <Button
           variant="ghost"
           size="sm"
-          className={`text-xs h-7 px-2 ${showZeroOnly ? "bg-red-900/50 text-red-300" : "text-zinc-400"}`}
+          className={`text-xs h-7 px-2 ${showZeroOnly ? "bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-300" : "text-muted-foreground"}`}
           onClick={() => setShowZeroOnly(!showZeroOnly)}
         >
           Нулевые
@@ -214,29 +214,29 @@ export function StockTab({ items, balances, onRefresh }: Props) {
         <Button
           variant="outline"
           size="sm"
-          className="text-xs h-7 px-3 border-zinc-700 text-zinc-300 ml-auto"
+          className="text-xs h-7 px-3 border-border text-muted-foreground ml-auto"
           onClick={() => setShowAssembly(true)}
         >
           Возможность сборки
         </Button>
       </div>
 
-      <div className="rounded-lg border border-zinc-700 overflow-hidden">
+      <div className="rounded-lg border border-border overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="border-zinc-700 hover:bg-transparent">
-              <TableHead className="text-zinc-400 text-xs font-medium h-8">Наименование</TableHead>
-              <TableHead className="text-zinc-400 text-xs font-medium h-8 w-24">Тип</TableHead>
-              <TableHead className="text-zinc-400 text-xs font-medium h-8 w-28 text-right">Остаток</TableHead>
+            <TableRow className="border-border hover:bg-transparent">
+              <TableHead className="text-muted-foreground text-xs font-medium h-8">Наименование</TableHead>
+              <TableHead className="text-muted-foreground text-xs font-medium h-8 w-24">Тип</TableHead>
+              <TableHead className="text-muted-foreground text-xs font-medium h-8 w-28 text-right">Остаток</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.map((item) => {
               const bal = balances[item.id] ?? 0;
               return (
-                <TableRow key={item.id} className="border-zinc-700/50 hover:bg-zinc-800/50">
+                <TableRow key={item.id} className="border-border/50 hover:bg-accent/50">
                   <TableCell className="py-1.5">
-                    <span className="text-white text-xs">{item.name}</span>
+                    <span className="text-foreground text-xs">{item.name}</span>
                   </TableCell>
                   <TableCell className="py-1.5">
                     <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${typeColors[item.type]}`}>
@@ -244,7 +244,7 @@ export function StockTab({ items, balances, onRefresh }: Props) {
                     </Badge>
                   </TableCell>
                   <TableCell className="py-1.5 text-right">
-                    <span className={`text-xs font-mono ${bal === 0 ? "text-red-400" : "text-white"}`}>
+                    <span className={`text-xs font-mono ${bal === 0 ? "text-destructive" : "text-foreground"}`}>
                       {formatNumber(bal)} {unitLabels[item.unit]}
                     </span>
                   </TableCell>

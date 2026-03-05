@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NomenclatureTab } from "./NomenclatureTab";
 import { StockTab } from "./StockTab";
 import { OperationsTab } from "./OperationsTab";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import type { NomenclatureItem } from "@/data/nomenclature";
 
 export function WarehousePanel() {
@@ -35,42 +36,45 @@ export function WarehousePanel() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-zinc-900">
-        <p className="text-zinc-400">Загрузка...</p>
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <p className="text-muted-foreground">Загрузка...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-900">
-      <header className="px-4 py-3 bg-zinc-800 border-b border-zinc-700 flex items-center justify-between">
-        <h1 className="text-white text-base font-semibold">Склад</h1>
-        <a
-          href="/"
-          className="text-zinc-400 text-xs hover:text-white transition-colors"
-        >
-          ← На главную
-        </a>
+    <div className="min-h-screen bg-background">
+      <header className="px-4 py-3 bg-card border-b border-border flex items-center justify-between">
+        <h1 className="text-foreground text-base font-semibold">Склад</h1>
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <a
+            href="/"
+            className="text-muted-foreground text-xs hover:text-foreground transition-colors"
+          >
+            ← На главную
+          </a>
+        </div>
       </header>
 
       <div className="p-4">
         <Tabs defaultValue="nomenclature" className="w-full">
-          <TabsList className="bg-zinc-800 border border-zinc-700 mb-4">
+          <TabsList className="bg-card border border-border mb-4">
             <TabsTrigger
               value="nomenclature"
-              className="data-[state=active]:bg-zinc-700 data-[state=active]:text-white text-zinc-400 text-xs"
+              className="data-[state=active]:bg-accent data-[state=active]:text-foreground text-muted-foreground text-xs"
             >
               Номенклатура
             </TabsTrigger>
             <TabsTrigger
               value="stock"
-              className="data-[state=active]:bg-zinc-700 data-[state=active]:text-white text-zinc-400 text-xs"
+              className="data-[state=active]:bg-accent data-[state=active]:text-foreground text-muted-foreground text-xs"
             >
               Остатки
             </TabsTrigger>
             <TabsTrigger
               value="operations"
-              className="data-[state=active]:bg-zinc-700 data-[state=active]:text-white text-zinc-400 text-xs"
+              className="data-[state=active]:bg-accent data-[state=active]:text-foreground text-muted-foreground text-xs"
             >
               Операции
             </TabsTrigger>

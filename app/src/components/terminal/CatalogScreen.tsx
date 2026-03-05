@@ -5,6 +5,7 @@ import { categories, Category, Product, Part } from "@/data/catalog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PartDetail } from "./PartDetail";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface CatalogScreenProps {
   workerName: string;
@@ -49,26 +50,27 @@ export function CatalogScreen({ workerName, onLogout, onSubmit }: CatalogScreenP
   })();
 
   return (
-    <div className="flex flex-col min-h-screen bg-zinc-900">
-      <header className="flex items-center justify-between px-3 py-2 bg-zinc-800 border-b border-zinc-700">
+    <div className="flex flex-col min-h-screen bg-background">
+      <header className="flex items-center justify-between px-3 py-2 bg-card border-b border-border">
         <div className="flex items-center gap-2">
           {view.type !== "categories" && (
             <Button
               variant="ghost"
-              className="text-zinc-300 hover:text-white text-base px-2 h-8"
+              className="text-muted-foreground hover:text-foreground text-base px-2 h-8"
               onClick={handleBack}
             >
               ←
             </Button>
           )}
-          <h1 className="text-sm font-semibold text-white">{title}</h1>
+          <h1 className="text-sm font-semibold text-foreground">{title}</h1>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-zinc-400 text-xs">{workerName}</span>
+          <span className="text-muted-foreground text-xs">{workerName}</span>
+          <ThemeToggle />
           <Button
             variant="outline"
             size="sm"
-            className="border-zinc-600 text-zinc-300 hover:bg-zinc-700 h-7 text-xs px-2"
+            className="border-border text-muted-foreground hover:bg-accent h-7 text-xs px-2"
             onClick={onLogout}
           >
             Выход
@@ -82,7 +84,7 @@ export function CatalogScreen({ workerName, onLogout, onSubmit }: CatalogScreenP
             {categories.map((cat) => (
               <Card
                 key={cat.id}
-                className="bg-zinc-800 border-zinc-700 cursor-pointer hover:border-zinc-500 active:bg-zinc-700 transition-all overflow-hidden"
+                className="bg-card border-border cursor-pointer hover:border-ring active:bg-accent transition-all overflow-hidden"
                 onClick={() => setView({ type: "products", category: cat })}
               >
                 <div className="aspect-square relative">
@@ -93,8 +95,8 @@ export function CatalogScreen({ workerName, onLogout, onSubmit }: CatalogScreenP
                   />
                 </div>
                 <div className="p-1.5">
-                  <h3 className="text-white font-medium text-xs">{cat.name}</h3>
-                  <p className="text-zinc-500 text-[10px]">{cat.products.length} изд.</p>
+                  <h3 className="text-foreground font-medium text-xs">{cat.name}</h3>
+                  <p className="text-muted-foreground/70 text-[10px]">{cat.products.length} изд.</p>
                 </div>
               </Card>
             ))}
@@ -106,7 +108,7 @@ export function CatalogScreen({ workerName, onLogout, onSubmit }: CatalogScreenP
             {view.category.products.map((product) => (
               <Card
                 key={product.id}
-                className="bg-zinc-800 border-zinc-700 cursor-pointer hover:border-zinc-500 active:bg-zinc-700 transition-all overflow-hidden"
+                className="bg-card border-border cursor-pointer hover:border-ring active:bg-accent transition-all overflow-hidden"
                 onClick={() => setView({ type: "parts", product })}
               >
                 <div className="aspect-square relative">
@@ -117,8 +119,8 @@ export function CatalogScreen({ workerName, onLogout, onSubmit }: CatalogScreenP
                   />
                 </div>
                 <div className="p-1.5">
-                  <h3 className="text-white font-medium text-xs">{product.name}</h3>
-                  <p className="text-zinc-500 text-[10px]">{product.parts.length} дет.</p>
+                  <h3 className="text-foreground font-medium text-xs">{product.name}</h3>
+                  <p className="text-muted-foreground/70 text-[10px]">{product.parts.length} дет.</p>
                 </div>
               </Card>
             ))}
@@ -127,15 +129,15 @@ export function CatalogScreen({ workerName, onLogout, onSubmit }: CatalogScreenP
 
         {view.type === "parts" && (
           <div className="space-y-2">
-            <div className="bg-zinc-800 rounded-lg p-2 border border-zinc-700">
-              <p className="text-zinc-400 text-xs">{view.product.description}</p>
+            <div className="bg-card rounded-lg p-2 border border-border">
+              <p className="text-muted-foreground text-xs">{view.product.description}</p>
             </div>
-            <h2 className="text-sm font-medium text-zinc-300">Комплектующие:</h2>
+            <h2 className="text-sm font-medium text-muted-foreground">Комплектующие:</h2>
             <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2">
               {view.product.parts.map((part) => (
                 <Card
                   key={part.id}
-                  className="bg-zinc-800 border-zinc-700 cursor-pointer hover:border-zinc-500 active:bg-zinc-700 transition-all overflow-hidden"
+                  className="bg-card border-border cursor-pointer hover:border-ring active:bg-accent transition-all overflow-hidden"
                   onClick={() => setView({ type: "partDetail", part, product: view.product })}
                 >
                   <div className="aspect-square relative">
@@ -146,7 +148,7 @@ export function CatalogScreen({ workerName, onLogout, onSubmit }: CatalogScreenP
                     />
                   </div>
                   <div className="p-1.5">
-                    <h3 className="text-white font-medium text-[11px]">{part.name}</h3>
+                    <h3 className="text-foreground font-medium text-[11px]">{part.name}</h3>
                   </div>
                 </Card>
               ))}

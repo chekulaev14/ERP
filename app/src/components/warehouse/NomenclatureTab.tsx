@@ -79,7 +79,7 @@ export function NomenclatureTab({ items, balances }: Props) {
       <div>
         <Button
           variant="ghost"
-          className="text-zinc-400 hover:text-white mb-3 text-xs px-2 h-7"
+          className="text-muted-foreground hover:text-foreground mb-3 text-xs px-2 h-7"
           onClick={() => setSelectedItem(null)}
         >
           ← Назад к списку
@@ -96,14 +96,14 @@ export function NomenclatureTab({ items, balances }: Props) {
           placeholder="Поиск по названию, ID, описанию..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500 text-xs h-8 max-w-xs"
+          className="bg-card border-border text-foreground placeholder:text-muted-foreground text-xs h-8 max-w-xs"
         />
 
         <div className="flex gap-1 flex-wrap">
           <Button
             variant="ghost"
             size="sm"
-            className={`text-xs h-7 px-2 ${filterType === "all" ? "bg-zinc-700 text-white" : "text-zinc-400"}`}
+            className={`text-xs h-7 px-2 ${filterType === "all" ? "bg-accent text-foreground" : "text-muted-foreground"}`}
             onClick={() => setFilterType("all")}
           >
             Все
@@ -113,7 +113,7 @@ export function NomenclatureTab({ items, balances }: Props) {
               key={t}
               variant="ghost"
               size="sm"
-              className={`text-xs h-7 px-2 ${filterType === t ? "bg-zinc-700 text-white" : "text-zinc-400"}`}
+              className={`text-xs h-7 px-2 ${filterType === t ? "bg-accent text-foreground" : "text-muted-foreground"}`}
               onClick={() => setFilterType(t)}
             >
               {itemTypeLabels[t]}
@@ -124,7 +124,7 @@ export function NomenclatureTab({ items, balances }: Props) {
         <select
           value={filterCategory}
           onChange={(e) => setFilterCategory(e.target.value)}
-          className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs rounded px-2 h-7"
+          className="bg-card border border-border text-muted-foreground text-xs rounded px-2 h-7"
         >
           <option value="all">Все категории</option>
           {categories.map((c) => (
@@ -136,30 +136,30 @@ export function NomenclatureTab({ items, balances }: Props) {
         </select>
       </div>
 
-      <p className="text-zinc-500 text-xs">{filtered.length} позиций</p>
+      <p className="text-muted-foreground/70 text-xs">{filtered.length} позиций</p>
 
-      <div className="rounded-lg border border-zinc-700 overflow-hidden">
+      <div className="rounded-lg border border-border overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="border-zinc-700 hover:bg-transparent">
-              <TableHead className="text-zinc-400 text-xs font-medium h-8">Наименование</TableHead>
-              <TableHead className="text-zinc-400 text-xs font-medium h-8 w-24">Тип</TableHead>
-              <TableHead className="text-zinc-400 text-xs font-medium h-8 w-20 text-right">Остаток</TableHead>
-              <TableHead className="text-zinc-400 text-xs font-medium h-8 w-12 text-right">Ед.</TableHead>
+            <TableRow className="border-border hover:bg-transparent">
+              <TableHead className="text-muted-foreground text-xs font-medium h-8">Наименование</TableHead>
+              <TableHead className="text-muted-foreground text-xs font-medium h-8 w-24">Тип</TableHead>
+              <TableHead className="text-muted-foreground text-xs font-medium h-8 w-20 text-right">Остаток</TableHead>
+              <TableHead className="text-muted-foreground text-xs font-medium h-8 w-12 text-right">Ед.</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.map((item) => (
               <TableRow
                 key={item.id}
-                className="border-zinc-700/50 cursor-pointer hover:bg-zinc-800/80"
+                className="border-border/50 cursor-pointer hover:bg-accent/50"
                 onClick={() => setSelectedItem(item)}
               >
                 <TableCell className="py-1.5">
                   <div>
-                    <p className="text-white text-xs font-medium">{item.name}</p>
+                    <p className="text-foreground text-xs font-medium">{item.name}</p>
                     {item.description && (
-                      <p className="text-zinc-500 text-[10px] mt-0.5 line-clamp-1 max-w-md">
+                      <p className="text-muted-foreground/70 text-[10px] mt-0.5 line-clamp-1 max-w-md">
                         {item.description}
                       </p>
                     )}
@@ -171,12 +171,12 @@ export function NomenclatureTab({ items, balances }: Props) {
                   </Badge>
                 </TableCell>
                 <TableCell className="py-1.5 text-right">
-                  <span className="text-white text-xs font-mono">
+                  <span className="text-foreground text-xs font-mono">
                     {formatNumber(balances[item.id] ?? 0)}
                   </span>
                 </TableCell>
                 <TableCell className="py-1.5 text-right">
-                  <span className="text-zinc-500 text-xs">{unitLabels[item.unit]}</span>
+                  <span className="text-muted-foreground/70 text-xs">{unitLabels[item.unit]}</span>
                 </TableCell>
               </TableRow>
             ))}

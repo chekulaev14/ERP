@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface PinScreenProps {
   onLogin: (workerId: string, workerName: string) => void;
@@ -42,8 +43,12 @@ export function PinScreen({ onLogin }: PinScreenProps) {
   const digits = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"];
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-zinc-900 p-4">
-      <p className="text-zinc-400 text-sm mb-5">Введите PIN-код</p>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4 relative">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
+
+      <p className="text-muted-foreground text-sm mb-5">Введите PIN-код</p>
 
       <div className="flex gap-2 mb-4">
         {[0, 1, 2, 3].map((i) => (
@@ -52,16 +57,16 @@ export function PinScreen({ onLogin }: PinScreenProps) {
             className={`w-3 h-3 rounded-full border-2 transition-all ${
               i < pin.length
                 ? error
-                  ? "bg-red-500 border-red-500"
-                  : "bg-white border-white"
-                : "border-zinc-600"
+                  ? "bg-destructive border-destructive"
+                  : "bg-foreground border-foreground"
+                : "border-muted-foreground/50"
             }`}
           />
         ))}
       </div>
 
       {error && (
-        <p className="text-red-400 text-sm mb-2 animate-pulse">{error}</p>
+        <p className="text-destructive text-sm mb-2 animate-pulse">{error}</p>
       )}
 
       <div className="grid grid-cols-3 gap-2">
@@ -72,7 +77,7 @@ export function PinScreen({ onLogin }: PinScreenProps) {
               <Button
                 key={i}
                 variant="outline"
-                className="w-12 h-12 text-lg rounded-xl border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 active:bg-zinc-600"
+                className="w-12 h-12 text-lg rounded-xl border-border bg-card text-muted-foreground hover:bg-accent active:bg-accent"
                 onClick={handleDelete}
               >
                 ⌫
@@ -83,7 +88,7 @@ export function PinScreen({ onLogin }: PinScreenProps) {
             <Button
               key={i}
               variant="outline"
-              className="w-12 h-12 text-xl font-semibold rounded-xl border-zinc-700 bg-zinc-800 text-white hover:bg-zinc-700 active:bg-zinc-600"
+              className="w-12 h-12 text-xl font-semibold rounded-xl border-border bg-card text-foreground hover:bg-accent active:bg-accent"
               onClick={() => handleDigit(digit)}
             >
               {digit}
