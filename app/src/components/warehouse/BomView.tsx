@@ -67,34 +67,34 @@ export function BomView({ item, balances }: Props) {
           )}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <h2 className="text-foreground text-sm font-semibold">{item.name}</h2>
-              <Badge variant="outline" className={`text-xs px-2 py-0.5 ${typeColors[item.type]}`}>
+              <h2 className="text-foreground text-base font-semibold">{item.name}</h2>
+              <Badge variant="outline" className={`text-sm px-2.5 py-0.5 ${typeColors[item.type]}`}>
                 {itemTypeLabels[item.type]}
               </Badge>
             </div>
-            <p className="text-muted-foreground/70 text-[10px] font-mono mb-1">{item.id}</p>
+            <p className="text-muted-foreground text-xs font-mono mb-1">{item.id}</p>
             {item.description && (
-              <p className="text-muted-foreground text-xs">{item.description}</p>
+              <p className="text-muted-foreground text-sm">{item.description}</p>
             )}
             <div className="flex items-center gap-4 mt-2">
               <div>
-                <span className="text-muted-foreground/70 text-[10px]">На складе:</span>
-                <span className="text-foreground text-sm font-semibold ml-1">
+                <span className="text-muted-foreground text-xs">На складе:</span>
+                <span className="text-foreground text-base font-semibold ml-1">
                   {formatNumber(balance)} {unitLabels[item.unit]}
                 </span>
               </div>
               {canAssemble !== null && (
                 <div>
-                  <span className="text-muted-foreground/70 text-[10px]">Можно собрать:</span>
-                  <span className={`text-sm font-semibold ml-1 ${canAssemble > 0 ? "text-emerald-500" : "text-destructive"}`}>
+                  <span className="text-muted-foreground text-xs">Можно собрать:</span>
+                  <span className={`text-base font-semibold ml-1 ${canAssemble > 0 ? "text-emerald-600" : "text-destructive"}`}>
                     {canAssemble} шт
                   </span>
                 </div>
               )}
               {item.pricePerUnit && (
                 <div>
-                  <span className="text-muted-foreground/70 text-[10px]">Расценка:</span>
-                  <span className="text-emerald-400 text-sm ml-1">{item.pricePerUnit} ₽</span>
+                  <span className="text-muted-foreground text-xs">Расценка:</span>
+                  <span className="text-emerald-600 text-base ml-1">{item.pricePerUnit} ₽</span>
                 </div>
               )}
             </div>
@@ -103,13 +103,13 @@ export function BomView({ item, balances }: Props) {
       </div>
 
       {loading ? (
-        <p className="text-muted-foreground/70 text-xs">Загрузка спецификации...</p>
+        <p className="text-muted-foreground text-sm">Загрузка спецификации...</p>
       ) : (
         <>
           {/* Из чего состоит */}
           {children.length > 0 && (
             <div>
-              <h3 className="text-muted-foreground text-xs font-medium mb-2">
+              <h3 className="text-muted-foreground text-sm font-medium mb-2">
                 Состав (из чего делается) — {children.length} поз.
               </h3>
               <div className="space-y-1">
@@ -128,21 +128,21 @@ export function BomView({ item, balances }: Props) {
                       className="bg-card/60 rounded border border-border/50 px-3 py-2 flex items-center justify-between"
                     >
                       <div className="flex items-center gap-2 min-w-0">
-                        <Badge variant="outline" className={`text-[11px] px-1.5 py-0.5 shrink-0 ${typeColors[child.item.type]}`}>
+                        <Badge variant="outline" className={`text-xs px-2 py-0.5 shrink-0 ${typeColors[child.item.type]}`}>
                           {itemTypeLabels[child.item.type]}
                         </Badge>
-                        <span className="text-foreground text-xs truncate">{child.item.name}</span>
+                        <span className="text-foreground text-sm truncate">{child.item.name}</span>
                       </div>
                       <div className="flex items-center gap-3 shrink-0 ml-3">
                         {childCanAssemble !== null && (
-                          <span className={`text-[10px] font-mono ${childCanAssemble > 0 ? "text-emerald-500" : "text-destructive"}`}>
+                          <span className={`text-xs font-mono ${childCanAssemble > 0 ? "text-emerald-600" : "text-destructive"}`}>
                             собрать: {childCanAssemble}
                           </span>
                         )}
-                        <span className="text-muted-foreground text-xs font-mono">
+                        <span className="text-muted-foreground text-sm font-mono">
                           ×{formatNumber(child.quantity)} {unitLabels[child.item.unit]}
                         </span>
-                        <span className={`text-xs font-mono ${childBalance > 0 ? "text-muted-foreground" : "text-destructive"}`}>
+                        <span className={`text-sm font-mono ${childBalance > 0 ? "text-muted-foreground" : "text-destructive"}`}>
                           (ост: {formatNumber(childBalance)})
                         </span>
                       </div>
@@ -156,7 +156,7 @@ export function BomView({ item, balances }: Props) {
           {/* Куда входит */}
           {parents.length > 0 && (
             <div>
-              <h3 className="text-muted-foreground text-xs font-medium mb-2">
+              <h3 className="text-muted-foreground text-sm font-medium mb-2">
                 Входит в состав — {parents.length} поз.
               </h3>
               <div className="space-y-1">
@@ -166,12 +166,12 @@ export function BomView({ item, balances }: Props) {
                     className="bg-card/60 rounded border border-border/50 px-3 py-2 flex items-center justify-between"
                   >
                     <div className="flex items-center gap-2 min-w-0">
-                      <Badge variant="outline" className={`text-[11px] px-1.5 py-0.5 shrink-0 ${typeColors[parent.item.type]}`}>
+                      <Badge variant="outline" className={`text-xs px-2 py-0.5 shrink-0 ${typeColors[parent.item.type]}`}>
                         {itemTypeLabels[parent.item.type]}
                       </Badge>
-                      <span className="text-foreground text-xs truncate">{parent.item.name}</span>
+                      <span className="text-foreground text-sm truncate">{parent.item.name}</span>
                     </div>
-                    <span className="text-muted-foreground text-xs font-mono shrink-0 ml-3">
+                    <span className="text-muted-foreground text-sm font-mono shrink-0 ml-3">
                       нужно ×{formatNumber(parent.quantity)} {unitLabels[item.unit]}
                     </span>
                   </div>
@@ -181,7 +181,7 @@ export function BomView({ item, balances }: Props) {
           )}
 
           {children.length === 0 && parents.length === 0 && (
-            <p className="text-muted-foreground/70 text-xs">Нет связей в спецификации</p>
+            <p className="text-muted-foreground text-sm">Нет связей в спецификации</p>
           )}
         </>
       )}

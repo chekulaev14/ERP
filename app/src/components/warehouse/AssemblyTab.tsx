@@ -107,17 +107,17 @@ export function AssemblyTab({ items, balances }: Props) {
         return (
           <div key={type} className="rounded-lg border border-border overflow-hidden">
             <button
-              className="w-full flex items-center justify-between px-3 py-2 bg-card hover:bg-accent/30 transition-colors"
+              className="w-full flex items-center justify-between px-3 py-2.5 bg-card hover:bg-accent/30 transition-colors"
               onClick={() => toggleType(type)}
             >
               <div className="flex items-center gap-2">
-                <span className="text-muted-foreground text-xs w-4">
+                <span className="text-muted-foreground text-sm w-4">
                   {isExpanded ? "−" : "+"}
                 </span>
-                <Badge variant="outline" className={`text-xs px-2 py-0.5 ${typeColors[type]}`}>
+                <Badge variant="outline" className={`text-sm px-2.5 py-0.5 ${typeColors[type]}`}>
                   {itemTypeLabels[type]}
                 </Badge>
-                <span className="text-muted-foreground/70 text-xs">{group.length} поз.</span>
+                <span className="text-muted-foreground text-sm">{group.length} поз.</span>
               </div>
             </button>
 
@@ -135,12 +135,12 @@ export function AssemblyTab({ items, balances }: Props) {
                       onClick={() => router.push(`/warehouse/nomenclature/${item.id}`)}
                     >
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-foreground text-xs font-medium">{item.name}</span>
+                        <span className="text-foreground text-sm font-medium">{item.name}</span>
                         <div className="flex items-center gap-3">
-                          <span className="text-muted-foreground text-xs">
+                          <span className="text-muted-foreground text-sm">
                             На складе: <span className="text-foreground font-mono">{stock}</span>
                           </span>
-                          <span className={`text-xs font-mono ${canMake > 0 ? "text-emerald-400" : "text-destructive"}`}>
+                          <span className={`text-sm font-mono ${canMake > 0 ? "text-emerald-600" : "text-destructive"}`}>
                             Можно собрать: {canMake}
                           </span>
                         </div>
@@ -148,9 +148,9 @@ export function AssemblyTab({ items, balances }: Props) {
 
                       {deficit && (
                         <div className="mt-2 space-y-0.5">
-                          <p className="text-destructive text-[10px] font-medium">Не хватает для 1 шт:</p>
+                          <p className="text-destructive text-xs font-medium">Не хватает для 1 шт:</p>
                           {deficit.map((d) => (
-                            <p key={d.name} className="text-muted-foreground text-[10px] pl-2">
+                            <p key={d.name} className="text-muted-foreground text-xs pl-2">
                               {d.name}: нужно {formatNumber(d.needed)}, есть {formatNumber(d.available)}
                             </p>
                           ))}

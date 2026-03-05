@@ -104,13 +104,13 @@ export function StockTab({ items, balances, onRefresh }: Props) {
           placeholder="Поиск по названию..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="bg-card border-border text-foreground placeholder:text-muted-foreground text-xs h-8 max-w-xs"
+          className="bg-card border-border text-foreground placeholder:text-muted-foreground text-sm h-9 max-w-xs"
         />
 
         <Button
           variant="ghost"
           size="sm"
-          className={`text-xs h-7 px-2 ${showZeroOnly ? "bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-300" : "text-muted-foreground"}`}
+          className={`text-sm h-8 px-3 ${showZeroOnly ? "bg-red-100 text-red-600" : "text-muted-foreground"}`}
           onClick={() => setShowZeroOnly(!showZeroOnly)}
         >
           Нулевые
@@ -126,17 +126,17 @@ export function StockTab({ items, balances, onRefresh }: Props) {
           return (
             <div key={type} className="rounded-lg border border-border overflow-hidden">
               <button
-                className="w-full flex items-center justify-between px-3 py-2 bg-card hover:bg-accent/30 transition-colors"
+                className="w-full flex items-center justify-between px-3 py-2.5 bg-card hover:bg-accent/30 transition-colors"
                 onClick={() => toggleType(type)}
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground text-xs w-4">
+                  <span className="text-muted-foreground text-sm w-4">
                     {isExpanded ? "−" : "+"}
                   </span>
-                  <Badge variant="outline" className={`text-xs px-2 py-0.5 ${typeColors[type]}`}>
+                  <Badge variant="outline" className={`text-sm px-2.5 py-0.5 ${typeColors[type]}`}>
                     {itemTypeLabels[type]}
                   </Badge>
-                  <span className="text-muted-foreground/70 text-xs">{group.length} поз.</span>
+                  <span className="text-muted-foreground text-sm">{group.length} поз.</span>
                 </div>
               </button>
 
@@ -144,8 +144,8 @@ export function StockTab({ items, balances, onRefresh }: Props) {
                 <Table>
                   <TableHeader>
                     <TableRow className="border-border hover:bg-transparent">
-                      <TableHead className="text-muted-foreground text-xs font-medium h-7 pl-10">Наименование</TableHead>
-                      <TableHead className="text-muted-foreground text-xs font-medium h-7 w-28 text-right">Остаток</TableHead>
+                      <TableHead className="text-muted-foreground text-sm font-medium h-8 pl-10">Наименование</TableHead>
+                      <TableHead className="text-muted-foreground text-sm font-medium h-8 w-28 text-right">Остаток</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -157,11 +157,11 @@ export function StockTab({ items, balances, onRefresh }: Props) {
                           className="border-border/50 hover:bg-accent/50 cursor-pointer"
                           onClick={() => router.push(`/warehouse/nomenclature/${item.id}`)}
                         >
-                          <TableCell className="py-1.5 pl-10">
-                            <span className="text-foreground text-xs">{item.name}</span>
+                          <TableCell className="py-2 pl-10">
+                            <span className="text-foreground text-sm">{item.name}</span>
                           </TableCell>
-                          <TableCell className="py-1.5 text-right">
-                            <span className={`text-xs font-mono ${bal === 0 ? "text-destructive" : "text-foreground"}`}>
+                          <TableCell className="py-2 text-right">
+                            <span className={`text-sm font-mono ${bal === 0 ? "text-destructive" : "text-foreground"}`}>
                               {formatNumber(bal)} {unitLabels[item.unit]}
                             </span>
                           </TableCell>
