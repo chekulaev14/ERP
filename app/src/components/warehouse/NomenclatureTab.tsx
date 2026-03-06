@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -12,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useWarehouse } from "@/components/warehouse/WarehouseContext";
 import {
   type NomenclatureItem,
   type ItemType,
@@ -36,11 +38,25 @@ const typeColors: Record<ItemType, string> = {
 // От сырья к изделию
 const typeOrder: ItemType[] = ["material", "blank", "part", "subassembly", "product"];
 
+const emptyForm = {
+  name: "",
+  description: "",
+  typeId: "material" as string,
+  unitId: "pcs" as string,
+  categoryId: "",
+  pricePerUnit: "",
+};
+
 export function NomenclatureTab({ items, balances }: Props) {
   const router = useRouter();
+  const { editMode, refresh } = useWarehouse();
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [expandedTypes, setExpandedTypes] = useState<Set<ItemType>>(new Set());
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [addForm, setAddForm] = useState({ ...emptyForm });
+  const [addSaving, setAddSaving] = useState(false);
+  const [addError, setAddError] = useState("");
 
   const toggleType = (type: ItemType) => {
     setExpandedTypes((prev) => {
@@ -105,6 +121,32 @@ export function NomenclatureTab({ items, balances }: Props) {
     return expandedTypes;
   }, [search, expandedTypes, grouped]);
 
+  const handleAdd = async () => {
+    if (!addForm.name.trim()) return;
+    setAddSaving(true);
+    setAddError("");
+    try {
+      const res = await fetch("/api/nomenclature", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(addForm),
+      });
+      if (res.ok) {
+        setShowAddForm(false);
+        setAddForm({ ...emptyForm });
+        refresh();
+      } else {
+        const data = await res.json();
+        setAddError(data.error || "Ошибка создания");
+      }
+    } finally {
+      setAddSaving(false);
+    }
+  };
+
+  const typeOptions: ItemType[] = ["material", "blank", "part", "subassembly", "product"];
+  const unitOptions = Object.keys(unitLabels) as Array<keyof typeof unitLabels>;
+
   return (
     <div className="space-y-3">
       <div className="flex flex-col sm:flex-row gap-2">
@@ -128,7 +170,100 @@ export function NomenclatureTab({ items, balances }: Props) {
           ))}
           <option value="">Без категории</option>
         </select>
+
+        {editMode && (
+          <Button
+            size="sm"
+            className="h-9 text-xs sm:ml-auto"
+            onClick={() => setShowAddForm(true)}
+            disabled={showAddForm}
+          >
+            + Добавить позицию
+          </Button>
+        )}
       </div>
+
+      {showAddForm && (
+        <div className="bg-card rounded-lg border border-border p-4 space-y-3">
+          <p className="text-foreground text-sm font-medium">Новая позиция</p>
+          <div>
+            <label className="text-muted-foreground text-xs block mb-1">Название</label>
+            <Input
+              value={addForm.name}
+              onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
+              className="h-9 text-sm"
+              placeholder="Лист стали 3мм"
+            />
+          </div>
+          <div>
+            <label className="text-muted-foreground text-xs block mb-1">Описание</label>
+            <textarea
+              value={addForm.description}
+              onChange={(e) => setAddForm({ ...addForm, description: e.target.value })}
+              className="w-full bg-card border border-border text-foreground text-sm rounded px-3 py-2 min-h-[60px] resize-y"
+            />
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <div>
+              <label className="text-muted-foreground text-xs block mb-1">Тип</label>
+              <select
+                value={addForm.typeId}
+                onChange={(e) => setAddForm({ ...addForm, typeId: e.target.value })}
+                className="bg-card border border-border text-foreground text-sm rounded px-2 h-9"
+              >
+                {typeOptions.map((t) => (
+                  <option key={t} value={t}>{itemTypeLabels[t]}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-muted-foreground text-xs block mb-1">Единица</label>
+              <select
+                value={addForm.unitId}
+                onChange={(e) => setAddForm({ ...addForm, unitId: e.target.value })}
+                className="bg-card border border-border text-foreground text-sm rounded px-2 h-9"
+              >
+                {unitOptions.map((u) => (
+                  <option key={u} value={u}>{unitLabels[u]}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-muted-foreground text-xs block mb-1">Категория</label>
+              <select
+                value={addForm.categoryId}
+                onChange={(e) => setAddForm({ ...addForm, categoryId: e.target.value })}
+                className="bg-card border border-border text-foreground text-sm rounded px-2 h-9"
+              >
+                <option value="">Без категории</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-muted-foreground text-xs block mb-1">Расценка, ₽</label>
+              <Input
+                type="number"
+                step="0.01"
+                value={addForm.pricePerUnit}
+                onChange={(e) => setAddForm({ ...addForm, pricePerUnit: e.target.value })}
+                className="h-9 text-sm w-28"
+                placeholder="—"
+              />
+            </div>
+          </div>
+          {addError && <p className="text-destructive text-xs">{addError}</p>}
+          <div className="flex gap-2">
+            <Button size="sm" className="h-8 text-xs" onClick={handleAdd} disabled={addSaving || !addForm.name.trim()}>
+              {addSaving ? "Создание..." : "Создать"}
+            </Button>
+            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => { setShowAddForm(false); setAddForm({ ...emptyForm }); setAddError(""); }} disabled={addSaving}>
+              Отмена
+            </Button>
+          </div>
+        </div>
+      )}
 
       <p className="text-muted-foreground text-sm">{filtered.length} позиций</p>
 

@@ -8,6 +8,8 @@ interface WarehouseContextType {
   balances: Record<string, number>;
   loading: boolean;
   refresh: () => void;
+  editMode: boolean;
+  setEditMode: (v: boolean) => void;
 }
 
 const WarehouseContext = createContext<WarehouseContextType | null>(null);
@@ -16,6 +18,7 @@ export function WarehouseProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<NomenclatureItem[]>([]);
   const [balances, setBalances] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [editMode, setEditMode] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -39,7 +42,7 @@ export function WarehouseProvider({ children }: { children: ReactNode }) {
   }, [fetchData]);
 
   return (
-    <WarehouseContext.Provider value={{ items, balances, loading, refresh: fetchData }}>
+    <WarehouseContext.Provider value={{ items, balances, loading, refresh: fetchData, editMode, setEditMode }}>
       {children}
     </WarehouseContext.Provider>
   );

@@ -5,6 +5,9 @@ const isGhPages = process.env.GITHUB_PAGES === "true";
 
 const nextConfig: NextConfig = {
   devIndicators: false,
+  experimental: {
+    turbopackFileSystemCacheForDev: false,
+  },
   output: isGhPages ? "export" : undefined,
   basePath: isGhPages ? "/Gorchev-V" : "",
   assetPrefix: isGhPages ? "/Gorchev-V/" : undefined,

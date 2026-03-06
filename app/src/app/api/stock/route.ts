@@ -1,22 +1,32 @@
 import { NextResponse } from "next/server";
-import { getAllBalances, getBalance, addMovement, getMovements, getMovementsByItem } from "@/data/stock-store";
-import { getChildren, getItem, bom } from "@/data/nomenclature";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const itemId = searchParams.get("itemId");
 
   if (itemId) {
-    return NextResponse.json({
-      balance: getBalance(itemId),
-      movements: getMovementsByItem(itemId),
-    });
+    const [balance, movements] = await Promise.all([
+      getBalance(itemId),
+      prisma.stockMovement.findMany({
+        where: { itemId },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      }),
+    ]);
+
+    return NextResponse.json({ balance, movements });
   }
 
-  return NextResponse.json({
-    balances: getAllBalances(),
-    movements: getMovements(100),
-  });
+  const [balances, movements] = await Promise.all([
+    getAllBalances(),
+    prisma.stockMovement.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    }),
+  ]);
+
+  return NextResponse.json({ balances, movements });
 }
 
 export async function POST(request: Request) {
@@ -27,25 +37,32 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Не указаны обязательные поля" }, { status: 400 });
   }
 
-  const item = getItem(itemId);
+  const item = await prisma.item.findUnique({ where: { id: itemId } });
   if (!item) {
     return NextResponse.json({ error: "Позиция не найдена" }, { status: 404 });
   }
 
   switch (action) {
     case "supplier_income": {
-      const mov = addMovement("supplier_income", itemId, quantity, performedBy, undefined, comment);
-      return NextResponse.json({ movement: mov, balance: getBalance(itemId) });
+      const mov = await prisma.stockMovement.create({
+        data: { type: "supplier_income", itemId, quantity, performedBy, comment },
+      });
+      return NextResponse.json({ movement: mov, balance: await getBalance(itemId) });
     }
 
     case "production_income": {
-      const mov = addMovement("production_income", itemId, quantity, performedBy, workerId, comment);
-      return NextResponse.json({ movement: mov, balance: getBalance(itemId) });
+      const mov = await prisma.stockMovement.create({
+        data: { type: "production_income", itemId, quantity, performedBy, workerId, comment },
+      });
+      return NextResponse.json({ movement: mov, balance: await getBalance(itemId) });
     }
 
     case "assembly": {
-      // Проверить наличие компонентов
-      const children = getChildren(itemId);
+      const children = await prisma.bomEntry.findMany({
+        where: { parentId: itemId },
+        include: { child: true },
+      });
+
       if (children.length === 0) {
         return NextResponse.json({ error: "У позиции нет спецификации (BOM)" }, { status: 400 });
       }
@@ -53,10 +70,10 @@ export async function POST(request: Request) {
       const shortages: { name: string; needed: number; available: number }[] = [];
       for (const child of children) {
         const needed = child.quantity * quantity;
-        const available = getBalance(child.item.id);
+        const available = await getBalance(child.childId);
         if (available < needed) {
           shortages.push({
-            name: child.item.name,
+            name: child.child.name,
             needed: Math.round(needed * 1000) / 1000,
             available: Math.round(available * 1000) / 1000,
           });
@@ -67,25 +84,68 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Недостаточно компонентов", shortages }, { status: 400 });
       }
 
-      // Списать компоненты
-      const writeOffs = [];
-      for (const child of children) {
-        const needed = child.quantity * quantity;
-        const mov = addMovement("assembly_write_off", child.item.id, -needed, performedBy, undefined, `Списание на сборку ${item.name} x${quantity}`);
-        writeOffs.push(mov);
-      }
+      // Списать компоненты и начислить изделие в одной транзакции
+      const result = await prisma.$transaction(async (tx) => {
+        const writeOffs = [];
+        for (const child of children) {
+          const needed = child.quantity * quantity;
+          const mov = await tx.stockMovement.create({
+            data: {
+              type: "assembly_write_off",
+              itemId: child.childId,
+              quantity: -needed,
+              performedBy,
+              comment: `Списание на сборку ${item.name} x${quantity}`,
+            },
+          });
+          writeOffs.push(mov);
+        }
 
-      // Начислить готовое изделие
-      const incomeMov = addMovement("assembly_income", itemId, quantity, performedBy, undefined, comment || `Сборка ${quantity} шт`);
+        const incomeMov = await tx.stockMovement.create({
+          data: {
+            type: "assembly_income",
+            itemId,
+            quantity,
+            performedBy,
+            comment: comment || `Сборка ${quantity} шт`,
+          },
+        });
+
+        return { movement: incomeMov, writeOffs };
+      });
 
       return NextResponse.json({
-        movement: incomeMov,
-        writeOffs,
-        balance: getBalance(itemId),
+        ...result,
+        balance: await getBalance(itemId),
       });
     }
 
     default:
       return NextResponse.json({ error: "Неизвестное действие" }, { status: 400 });
   }
+}
+
+async function getBalance(itemId: string): Promise<number> {
+  const result = await prisma.stockMovement.aggregate({
+    where: { itemId },
+    _sum: { quantity: true },
+  });
+  return result._sum.quantity ?? 0;
+}
+
+async function getAllBalances(): Promise<Record<string, number>> {
+  const items = await prisma.item.findMany({ select: { id: true } });
+  const movements = await prisma.stockMovement.groupBy({
+    by: ["itemId"],
+    _sum: { quantity: true },
+  });
+
+  const balances: Record<string, number> = {};
+  for (const item of items) {
+    balances[item.id] = 0;
+  }
+  for (const m of movements) {
+    balances[m.itemId] = m._sum.quantity ?? 0;
+  }
+  return balances;
 }
