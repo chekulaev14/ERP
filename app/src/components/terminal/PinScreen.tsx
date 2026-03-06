@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface PinScreenProps {
-  onLogin: (workerId: string, workerName: string) => void;
+  onLogin: (workerId: string, workerName: string, role: string) => void;
 }
 
 export function PinScreen({ onLogin }: PinScreenProps) {
@@ -29,7 +29,7 @@ export function PinScreen({ onLogin }: PinScreenProps) {
           });
           if (res.ok) {
             const data = await res.json();
-            onLogin(data.id, data.name);
+            onLogin(data.id, data.name, data.role);
           } else {
             setError("Неверный PIN-код");
             setTimeout(() => {

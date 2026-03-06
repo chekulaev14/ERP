@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { PinScreen } from "./PinScreen";
 import { CatalogScreen } from "./CatalogScreen";
 
 const INACTIVITY_TIMEOUT = 60_000; // 60 секунд
 
 export function Terminal() {
+  const router = useRouter();
   const [session, setSession] = useState<{
     workerId: string;
     workerName: string;
@@ -45,7 +47,12 @@ export function Terminal() {
     };
   }, [session, resetActivity]);
 
-  const handleLogin = (workerId: string, workerName: string) => {
+  const handleLogin = (workerId: string, workerName: string, role: string) => {
+    if (role === "director" || role === "warehouse") {
+      sessionStorage.setItem("warehouse_session", JSON.stringify({ id: workerId, name: workerName, role }));
+      router.push("/warehouse");
+      return;
+    }
     setSession({ workerId, workerName });
     resetActivity();
   };

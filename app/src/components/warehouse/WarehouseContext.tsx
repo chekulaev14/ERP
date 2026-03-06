@@ -30,7 +30,20 @@ export function WarehouseProvider({ children }: { children: ReactNode }) {
   const [balances, setBalances] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
-  const [session, setSession] = useState<WarehouseSession | null>(null);
+  const [session, setSession] = useState<WarehouseSession | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const saved = sessionStorage.getItem("warehouse_session");
+      if (saved) {
+        sessionStorage.removeItem("warehouse_session");
+        const parsed = JSON.parse(saved);
+        if (parsed.role === "warehouse" || parsed.role === "director") {
+          return { id: parsed.id, name: parsed.name, role: parsed.role };
+        }
+      }
+    } catch {}
+    return null;
+  });
 
   const fetchData = useCallback(async () => {
     try {
