@@ -15,6 +15,26 @@ export async function getBalance(itemId: string): Promise<number> {
   return toNumber(result[0].balance);
 }
 
+export async function getBulkBalances(itemIds: string[]): Promise<Record<string, number>> {
+  if (itemIds.length === 0) return {};
+  const rows = await prisma.$queryRaw<{ item_id: string; balance: number }[]>`
+    SELECT item_id, COALESCE(SUM(
+      CASE WHEN type = ANY(${INCOME_TYPES}) THEN quantity ELSE -quantity END
+    ), 0) as balance
+    FROM stock_movements
+    WHERE item_id = ANY(${itemIds})
+    GROUP BY item_id
+  `;
+  const balances: Record<string, number> = {};
+  for (const id of itemIds) {
+    balances[id] = 0;
+  }
+  for (const row of rows) {
+    balances[row.item_id] = toNumber(row.balance);
+  }
+  return balances;
+}
+
 export async function getAllBalances(): Promise<Record<string, number>> {
   const rows = await prisma.$queryRaw<{ item_id: string; balance: number }[]>`
     SELECT item_id, COALESCE(SUM(

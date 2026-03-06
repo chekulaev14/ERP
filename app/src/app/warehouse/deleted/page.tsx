@@ -17,7 +17,7 @@ import { itemTypeLabels, unitLabels, typeColors } from "@/lib/constants";
 import { api } from "@/lib/api-client";
 
 export default function DeletedPage() {
-  const { refresh } = useWarehouse();
+  const { refreshAll } = useWarehouse();
   const [items, setItems] = useState<NomenclatureItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [restoring, setRestoring] = useState<string | null>(null);
@@ -39,7 +39,7 @@ export default function DeletedPage() {
     try {
       await api.patch(`/api/nomenclature/${id}`);
       load();
-      refresh();
+      refreshAll();
     } catch {
       // toast shown by api-client
     } finally {

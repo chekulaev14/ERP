@@ -3,13 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import type { ItemType } from "@/lib/types";
 import { itemTypeLabels, unitLabels, typeColors } from "@/lib/constants";
-import type { ConstructorItem } from "./ConstructorWizard";
-
-interface ProductData {
-  name: string;
-  unit: string;
-  description: string;
-}
+import type { ConstructorItem, ProductData } from "./wizard-reducer";
 
 interface TreeNode {
   tempId: string;

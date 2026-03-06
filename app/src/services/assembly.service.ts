@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getBalance } from "./stock.service";
+import { getBalance, getBulkBalances } from "./stock.service";
 import { toNumber } from "./helpers/serialize";
 
 interface Shortage {
@@ -44,10 +44,13 @@ export async function assemble(params: {
     throw new AssemblyError("У позиции нет спецификации (BOM)");
   }
 
+  const childIds = children.map((c) => c.childId);
+  const balances = await getBulkBalances(childIds);
+
   const shortages: Shortage[] = [];
   for (const child of children) {
     const needed = toNumber(child.quantity) * quantity;
-    const available = await getBalance(child.childId);
+    const available = balances[child.childId] ?? 0;
     if (available < needed) {
       shortages.push({
         name: child.child.name,

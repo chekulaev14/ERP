@@ -1,12 +1,13 @@
 # План эволюции фронтенда Gorchev-V
 
 ## Текущая оценка
-- Модульность (terminal/warehouse изоляция): 8/10
-- Service layer: 7/10 (есть, но 3 route с бизнес-логикой)
+- Модульность (terminal/warehouse изоляция): 9/10 (ESLint enforcement, полная изоляция)
+- Service layer: 9/10 (все routes делегируют в сервисы, prisma из routes не вызывается)
 - Типизация: 8/10 (единый types.ts, typed API client, zod inferred types)
-- Компоненты: 6/10 (BomView декомпозирован, ItemForm единый, UI-примитивы есть; остался ConstructorWizard)
+- Компоненты: 8/10 (BomView декомпозирован, ItemForm единый, UI-примитивы есть, ConstructorWizard декомпозирован на 10 файлов с reducer)
 - Валидация: 7/10 (zod на всех write-endpoints, клиентская валидация в ключевых формах)
-- Error handling: 5/10 (toast единообразно через api-client, нет error boundaries)
+- Error handling: 7/10 (toast через api-client, Error Boundary в warehouse и terminal, чеклист добавления поля)
+- Загрузка данных: 8/10 (N+1 убран, granular loading, smart refresh, code splitting по routes)
 
 ## Зависимости с DB-EVOLUTION.md
 Этот план — про фронтенд и стык фронт/бэк. Не дублирует задачи из DB-EVOLUTION. Можно выполнять параллельно с оставшимися фазами 5.x и 7.x.
@@ -102,88 +103,69 @@ Definition of done: все write-endpoints валидируются через z
 
 Цель: разбить 1231-строчный монолит на тестируемые компоненты. Отдельная фаза из-за размера и высокого риска регрессий.
 
-- [ ] F5.1 Состояние визарда — state machine вместо 13 useState:
-  - useReducer с явной моделью состояния: { materials, blanks, product, isPaired, step }
-  - Actions: addItem, removeItem, updateItem, setStep, togglePaired
-  - Переходы между шагами валидируются (нельзя перейти на шаг 2 без материалов)
-  - Данные шага не размазаны по вложенным компонентам
-  - Главное не сам reducer, а state-machine мышление: явные состояния, явные переходы, явные инварианты
-  - Делать ПЕРВЫМ — без стабильного state разбиение на компоненты бессмысленно
-  - Инварианты визарда (зафиксировать при реализации):
-    - Нельзя создать product без name
-    - Нельзя перейти на blanks без хотя бы одного material
-    - Нельзя завершить wizard без обязательных связей (каждая заготовка привязана к родителю)
-    - Paired-логика валидируется централизованно в reducer, не в компонентах шагов
-- [ ] F5.2 Извлечь WizardShell — обёртка визарда:
-  - Навигация по шагам (stepper)
-  - Кнопки "Назад / Далее / Создать"
-  - Получает state и dispatch из reducer
-- [ ] F5.3 Извлечь MaterialStep — шаг выбора материалов:
-  - Список материалов с количеством
-  - Добавление нового / выбор существующего (SearchableSelect)
-- [ ] F5.4 Извлечь BlankStep — шаг заготовок:
-  - Список заготовок с привязкой к материалам
-  - Цепочки обработки (заготовка из заготовки)
-  - Парность (чекбокс "парная лев/прав")
-- [ ] F5.5 Извлечь ProductStep — шаг изделия:
-  - Название, описание, единица измерения
-  - Парная деталь (галочка)
-  - Привязка заготовок к изделию
-- [ ] F5.6 Извлечь ItemCard в constructor/ItemCard.tsx:
-  - Сейчас 276 строк вложенный компонент
-  - Карточка позиции: инфо + поиск существующей + компоненты
-  - Получает state и dispatch — не props drilling (12+ пропсов)
-- [ ] F5.7 Извлечь DbItemSearch — поиск существующей позиции в БД:
-  - Текстовый поиск + группировка по категориям
-  - Сейчас встроен в ItemCard
+- [x] F5.1 Состояние визарда — state machine (wizard-reducer.ts):
+  - useReducer с моделью: { materials, blanks, product, isPaired, step }
+  - 11 actions: SET_STEP, ADD_ITEM, REMOVE_ITEM, UPDATE_ITEM, SELECT_EXISTING, CLEAR_EXISTING, SET_PRODUCT, TOGGLE_PAIRED, ATTACH_COMPONENT, DETACH_COMPONENT, UPDATE_QUANTITY
+  - Селекторы: getAvailableComponents, getComponentsOf, canGoNext, canFinish
+  - Типы ConstructorItem, ProductData, DbItem — единый источник в wizard-reducer.ts
+  - Инварианты: canFinish() проверяет product.name. Шаги можно пропускать (сохранён текущий UX)
+  - Paired-логика: syncPaired() в reducer автоматически синхронизирует isPaired с наличием парных blanks
+- [x] F5.2 Извлечь WizardShell (WizardShell.tsx):
+  - Stepper (4 шага) + навигация (Отмена/Назад/Пропустить/Далее/Создать)
+  - Получает step, callbacks, children — чистый презентационный компонент
+- [x] F5.3+F5.4 Единый ItemsStep (ItemsStep.tsx):
+  - Параметризован через stepInfo — используется для materials (step=0) и blanks (step=1)
+  - Не разделён на MaterialStep/BlankStep — единый компонент без дублирования
+- [x] F5.5 Извлечь ProductStep (ProductStep.tsx):
+  - Форма изделия + ComponentsSection для привязки компонентов
+- [x] F5.6 Извлечь ItemCard (ItemCard.tsx):
+  - Карточка позиции: создание новой / выбор из базы / компоненты
+  - DbItems передаются через props (загрузка поднята на уровень визарда — один запрос вместо N)
+- [x] F5.7 Извлечь DbItemSearch (DbItemSearch.tsx) + ComponentsSection (ComponentsSection.tsx) + SummaryStep (SummaryStep.tsx)
 
-Definition of done: ConstructorWizard < 150 строк (только оркестрация). Каждый шаг — отдельный файл < 250 строк. Состояние визарда управляется через reducer с явными переходами и инвариантами. Добавление нового шага = новый файл + action в reducer.
+Definition of done: ConstructorWizard 196 строк (оркестрация + handleCreate + loadDbItems). Каждый шаг — отдельный файл < 250 строк. wizard-reducer.ts (271 строка) — единый источник state, actions, типов, селекторов. Добавление нового шага = новый файл + action в reducer. 10 файлов вместо 2, ни одного > 300 строк.
 
 ## Фаза F6 — Оптимизация загрузки данных
 
 Цель: не грузить всё при монтировании. Ленивая загрузка, батчинг, кэширование. Делать строго после F4/F5 — сначала стабилизировать изменяемость, потом оптимизировать производительность.
 
-- [ ] F6.1 Батчинг балансов в assembly.service:
-  - Один запрос на все балансы вместо getBalance() в цикле
-  - Убирает N+1 при проверке остатков для сборки
-- [ ] F6.2 Кэширование справочников:
-  - ItemType, Unit, Category, ProcessGroup — меняются редко
-  - Загружать один раз, хранить в контексте, не перезапрашивать при refresh()
-- [ ] F6.3 Granular loading в WarehouseContext:
-  - Разделить загрузку: items, balances, bom, workers — независимые запросы
-  - Не блокировать UI пока грузятся workers, если нужны только items
-  - Отдельные loading-флаги вместо одного
-- [ ] F6.4 Ленивая загрузка тяжёлых компонентов:
-  - ConstructorWizard — dynamic import (next/dynamic)
-  - ProcessesTab, BomView — не грузить пока не открыт таб
-- [ ] F6.5 (условный) Пагинация номенклатуры:
-  - Делать только когда объём данных реально станет проблемой, не заранее
-  - API: GET /api/nomenclature?page=1&limit=50&search=...&type=...
-  - Сервис: offset/limit в Prisma query
-  - Компонент: бесконечный скролл или "Загрузить ещё"
+- [x] F6.1 Батчинг балансов в assembly.service:
+  - getBulkBalances(ids) в stock.service — один запрос вместо N
+  - assembly.service использует getBulkBalances вместо getBalance() в цикле
+- [x] F6.2 Кэширование справочников при refresh():
+  - refresh() — быстрый: обновляет только balances + bom (volatile данные)
+  - refreshAll() — полный: items + balances + bom + workers (после создания/удаления позиций)
+  - NomenclatureTab, BomView (удаление/редактирование item), DeletedPage → refreshAll()
+  - StockPage, OperationsPage, BomView (BOM-операции) → refresh()
+- [x] F6.3 Granular loading в WarehouseContext:
+  - Начальная загрузка: 4 независимых запроса (items, balances, bom, workers)
+  - UI разблокируется как только items загружены (loading = false)
+  - balances, bom, workers подгружаются параллельно в фоне
+- [x] F6.4 Пропущено — ConstructorWizard, ProcessesTab, BomView уже на отдельных route pages, Next.js делает code splitting автоматически
+- [x] F6.5 Пропущено — объём данных пока не требует пагинации
 
-Definition of done: N+1 в assembly убран. Справочники кэшируются. WarehouseContext не блокирует UI загрузкой всего сразу. Тяжёлые компоненты загружаются лениво.
+Definition of done: N+1 в assembly убран. refresh() обновляет только volatile данные. WarehouseContext не блокирует UI загрузкой всех данных — items разблокирует UI, остальное в фоне.
 
 ## Фаза F7 — Error handling, DX, правила
 
 Цель: предсказуемая обработка ошибок, удобство разработки, правила для команды.
 
-- [ ] F7.1 React Error Boundary:
-  - Обёртка на уровне layout.tsx для warehouse и terminal
-  - Fallback UI: "Произошла ошибка, обновите страницу"
-  - Логирование ошибки (console + опционально Sentry)
-  - Важно: Error Boundary — для render/runtime ошибок. Рабочие ошибки API/форм обрабатываются через toast (F3.1), не через boundary. Не смешивать уровни.
-- [ ] F7.2 ESLint правила:
-  - no-restricted-imports: запретить import из data/ в components/
-  - no-restricted-imports: запретить прямой import между terminal/ и warehouse/
-  - max-lines-per-function: предупреждение при >300 строк
-- [ ] F7.3 Вынести бизнес-логику из оставшихся route handlers:
-  - terminal/catalog → catalog.service.ts (50 строк маппинга BOM → каталог)
-  - terminal/logs → агрегация в сервис
-  - terminal/output → решение "сборка или лог" в сервис
-- [ ] F7.4 Документировать правила добавления нового поля:
-  - Чеклист: schema.prisma → миграция → lib/types.ts → mapItem → zod-схема → field config → ItemForm
-  - Записать в ARCHITECTURE.md
+- [x] F7.1 React Error Boundary:
+  - ErrorBoundary class component в components/ui/error-boundary.tsx
+  - Обёртка в warehouse/layout.tsx и terminal/layout.tsx (создан)
+  - Fallback UI: "Произошла ошибка" + кнопка "Обновить страницу"
+  - Логирование: console.error с componentStack
+  - Error Boundary — для render/runtime ошибок. Бизнес-ошибки API/форм — через toast.
+- [x] F7.2 ESLint правила (eslint.config.mjs, flat config):
+  - no-restricted-imports: запрет data/ в components/, запрет terminal/ ↔ warehouse/
+  - max-lines-per-function: warning при >300 строк (skipBlankLines, skipComments)
+- [x] F7.3 Вынести бизнес-логику из terminal route handlers:
+  - catalog.service.ts — маппинг BOM → каталог (категории, продукты, запчасти)
+  - terminal-logs.service.ts — логи производства + агрегация сводки по рабочим
+  - terminal-output.service.ts — запись выхода продукции (решение "сборка или лог")
+  - Все три route handlers теперь только парсят запрос и возвращают ответ
+- [x] F7.4 Документировать правила добавления нового поля:
+  - Чеклист в ARCHITECTURE.md: schema.prisma → миграция → types.ts → mapItem → zod → field config → проверить ItemForm
 
 Definition of done: Error boundary ловит runtime-ошибки (не бизнес-ошибки). ESLint не даёт импортировать запрещённое. Бизнес-логика убрана из terminal routes. Есть документированный чеклист добавления поля.
 

@@ -19,7 +19,10 @@ interface WarehouseContextType {
   workers: Worker[];
   loading: boolean;
   authChecked: boolean;
+  /** Быстрый refresh: только balances + bom (после операций, BOM-изменений) */
   refresh: () => void;
+  /** Полный refresh: items + balances + bom + workers (после создания/удаления позиций) */
+  refreshAll: () => void;
   editMode: boolean;
   setEditMode: (v: boolean) => void;
   session: WarehouseSession | null;
@@ -28,6 +31,15 @@ interface WarehouseContextType {
 }
 
 const WarehouseContext = createContext<WarehouseContextType | null>(null);
+
+function parseBomMap(bomData: { parentId: string; child: NomenclatureItem; quantity: number }[]) {
+  const map: Record<string, BomChildEntry[]> = {};
+  for (const entry of bomData) {
+    if (!map[entry.parentId]) map[entry.parentId] = [];
+    map[entry.parentId].push({ item: entry.child, quantity: entry.quantity });
+  }
+  return map;
+}
 
 export function WarehouseProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<NomenclatureItem[]>([]);
@@ -39,31 +51,55 @@ export function WarehouseProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<WarehouseSession | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
 
-  const fetchData = useCallback(async () => {
-    try {
-      const [nomData, stockData, bomData, workersData] = await Promise.all([
-        api.get<{ items: NomenclatureItem[] }>("/api/nomenclature", { silent: true }),
-        api.get<{ balances: Record<string, number> }>("/api/stock", { silent: true }),
-        api.get<{ parentId: string; child: NomenclatureItem; quantity: number }[]>("/api/bom", { silent: true }),
-        api.get<Worker[]>("/api/workers", { silent: true }),
-      ]);
+  // --- Отдельные fetch-функции ---
+  const fetchItems = useCallback(() =>
+    api.get<{ items: NomenclatureItem[] }>("/api/nomenclature", { silent: true })
+      .then((d) => setItems(d.items))
+      .catch(() => {}),
+  []);
 
-      setItems(nomData.items);
-      setBalances(stockData.balances);
-      setWorkers(workersData);
+  const fetchBalances = useCallback(() =>
+    api.get<{ balances: Record<string, number> }>("/api/stock", { silent: true })
+      .then((d) => setBalances(d.balances))
+      .catch(() => {}),
+  []);
 
-      const map: Record<string, BomChildEntry[]> = {};
-      for (const entry of bomData) {
-        if (!map[entry.parentId]) map[entry.parentId] = [];
-        map[entry.parentId].push({ item: entry.child, quantity: entry.quantity });
-      }
-      setBomChildren(map);
-    } catch {
-      // silent — toast не нужен при загрузке
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const fetchBom = useCallback(() =>
+    api.get<{ parentId: string; child: NomenclatureItem; quantity: number }[]>("/api/bom", { silent: true })
+      .then((d) => setBomChildren(parseBomMap(d)))
+      .catch(() => {}),
+  []);
+
+  const fetchWorkers = useCallback(() =>
+    api.get<Worker[]>("/api/workers", { silent: true })
+      .then((d) => setWorkers(d))
+      .catch(() => {}),
+  []);
+
+  // Начальная загрузка: все параллельно, UI разблокируется по мере готовности items
+  const fetchAll = useCallback(async () => {
+    // items — главный ресурс, разблокирует UI
+    const itemsPromise = fetchItems().then(() => setLoading(false));
+    // остальное грузится параллельно в фоне
+    fetchBalances();
+    fetchBom();
+    fetchWorkers();
+    await itemsPromise;
+  }, [fetchItems, fetchBalances, fetchBom, fetchWorkers]);
+
+  // Быстрый refresh: только volatile данные
+  const refresh = useCallback(() => {
+    fetchBalances();
+    fetchBom();
+  }, [fetchBalances, fetchBom]);
+
+  // Полный refresh: все данные
+  const refreshAll = useCallback(() => {
+    fetchItems();
+    fetchBalances();
+    fetchBom();
+    fetchWorkers();
+  }, [fetchItems, fetchBalances, fetchBom, fetchWorkers]);
 
   const WEB_ROLES: WarehouseRole[] = ["WAREHOUSE", "DIRECTOR", "ADMIN"];
 
@@ -82,11 +118,11 @@ export function WarehouseProvider({ children }: { children: ReactNode }) {
   // Load data after auth confirmed
   useEffect(() => {
     if (authChecked && session) {
-      fetchData();
+      fetchAll();
     } else if (authChecked && !session) {
       setLoading(false);
     }
-  }, [authChecked, session, fetchData]);
+  }, [authChecked, session, fetchAll]);
 
   const login = useCallback(async (email: string, password: string): Promise<string | null> => {
     try {
@@ -113,7 +149,8 @@ export function WarehouseProvider({ children }: { children: ReactNode }) {
 
   return (
     <WarehouseContext.Provider value={{
-      items, balances, bomChildren, workers, loading, authChecked, refresh: fetchData,
+      items, balances, bomChildren, workers, loading, authChecked,
+      refresh, refreshAll,
       editMode, setEditMode,
       session, login, logout,
     }}>

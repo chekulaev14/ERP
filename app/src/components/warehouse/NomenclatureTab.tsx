@@ -26,7 +26,7 @@ const typeOrder: ItemType[] = ["material", "blank", "product"];
 
 export function NomenclatureTab({ items, balances }: Props) {
   const router = useRouter();
-  const { editMode, refresh } = useWarehouse();
+  const { editMode, refreshAll } = useWarehouse();
   const [search, setSearch] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [addForm, setAddForm] = useState<ItemFormValues>({ ...emptyItemFormValues });
@@ -79,7 +79,7 @@ export function NomenclatureTab({ items, balances }: Props) {
       }
       setShowAddForm(false);
       setAddForm({ ...emptyItemFormValues });
-      refresh();
+      refreshAll();
     } catch {
       // toast shown by api-client
     } finally {

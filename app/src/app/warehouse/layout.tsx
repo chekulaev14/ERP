@@ -6,6 +6,7 @@ import { WarehouseProvider, useWarehouse } from "@/components/warehouse/Warehous
 import { WarehouseNav } from "@/components/warehouse/WarehouseNav";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 function LoginGate() {
   const { login } = useWarehouse();
@@ -133,7 +134,7 @@ function WarehouseLayout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
       <div className="p-4">
-        {children}
+        <ErrorBoundary>{children}</ErrorBoundary>
       </div>
     </div>
   );
