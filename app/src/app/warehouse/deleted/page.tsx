@@ -22,8 +22,6 @@ import {
 const typeColors: Record<ItemType, string> = {
   material: "bg-amber-100 text-amber-800 border-amber-300",
   blank: "bg-orange-100 text-orange-800 border-orange-300",
-  part: "bg-blue-100 text-blue-800 border-blue-300",
-  subassembly: "bg-purple-100 text-purple-800 border-purple-300",
   product: "bg-emerald-100 text-emerald-800 border-emerald-300",
 };
 

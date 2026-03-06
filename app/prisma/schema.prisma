@@ -9,8 +9,8 @@ datasource db {
 
 // Типы номенклатуры (гибкая таблица вместо enum)
 model ItemType {
-  id    String @id // "material", "blank", "part", "subassembly", "product"
-  name  String // "Сырьё", "Заготовка", "Деталь", "Подсборка", "Изделие"
+  id    String @id // "material", "blank", "product"
+  name  String // "Сырьё", "Заготовка", "Изделие"
   order Int    @default(0) // порядок сортировки
   color String @default("gray") // цвет для бейджа (amber, orange, blue, purple, emerald)
   items Item[]

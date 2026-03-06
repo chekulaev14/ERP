@@ -19,16 +19,17 @@ import {
   unitLabels,
 } from "@/data/nomenclature";
 
-// Типы для wizard state
 export interface ConstructorItem {
   tempId: string;
-  existingId?: string; // если выбрана существующая позиция из базы
+  existingId?: string;
   name: string;
   unit: string;
   description: string;
   pricePerUnit: string;
   quantity: string;
+  stockQuantity: string;
   parentTempId: string;
+  isPaired: boolean;
 }
 
 interface ProductData {
@@ -47,22 +48,18 @@ interface DbItem {
   pricePerUnit: number | null;
 }
 
-// Порядок типов для группировки
-const typeOrder: ItemType[] = ["material", "blank", "part", "subassembly", "product"];
+const typeOrder: ItemType[] = ["material", "blank", "product"];
 
-const STEPS: { type: ItemType; label: string; parentType: string }[] = [
-  { type: "product", label: "Изделие", parentType: "" },
-  { type: "subassembly", label: "Подсборки", parentType: "Изделие" },
-  { type: "part", label: "Детали", parentType: "Подсборка / Изделие" },
-  { type: "blank", label: "Заготовки", parentType: "Деталь" },
-  { type: "material", label: "Сырьё", parentType: "Заготовка" },
+// Шаги: от сырья к изделию
+const STEPS: { type: ItemType; label: string; componentsFrom: string }[] = [
+  { type: "material", label: "Сырье", componentsFrom: "" },
+  { type: "blank", label: "Заготовки", componentsFrom: "сырья и заготовок" },
+  { type: "product", label: "Изделие", componentsFrom: "заготовок и сырья" },
 ];
 
 const typeColors: Record<ItemType, string> = {
   material: "bg-amber-100 text-amber-800 border-amber-300",
   blank: "bg-orange-100 text-orange-800 border-orange-300",
-  part: "bg-blue-100 text-blue-800 border-blue-300",
-  subassembly: "bg-purple-100 text-purple-800 border-purple-300",
   product: "bg-emerald-100 text-emerald-800 border-emerald-300",
 };
 
@@ -77,55 +74,118 @@ export function ConstructorWizard() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
 
+  const [materials, setMaterials] = useState<ConstructorItem[]>([]);
+  const [blanks, setBlanks] = useState<ConstructorItem[]>([]);
+
   const [product, setProduct] = useState<ProductData>({
     name: "",
     unit: "pcs",
     description: "",
   });
+  const [isPairedProduct, setIsPairedProduct] = useState(false);
   const [productTempId] = useState(() => nextTempId());
 
-  const [subassemblies, setSubassemblies] = useState<ConstructorItem[]>([]);
-  const [parts, setParts] = useState<ConstructorItem[]>([]);
-  const [blanks, setBlanks] = useState<ConstructorItem[]>([]);
-  const [materials, setMaterials] = useState<ConstructorItem[]>([]);
+  // Автоматически включать/выключать парность изделия по наличию парных заготовок
+  useEffect(() => {
+    const hasPairedBlanks = blanks.some((b) => b.isPaired);
+    setIsPairedProduct(hasPairedBlanks);
+  }, [blanks]);
 
-  const itemsByStep = [null, subassemblies, parts, blanks, materials];
-  const settersByStep = [null, setSubassemblies, setParts, setBlanks, setMaterials];
+  // Массивы по индексу шага (0-1 — items, 2 — product)
+  const itemsByStep = [materials, blanks, null];
+  const settersByStep = [setMaterials, setBlanks, null];
 
-  const getParentOptions = useCallback(
-    (stepIndex: number): { tempId: string; name: string; type: ItemType }[] => {
-      if (stepIndex === 1) {
-        return product.name
-          ? [{ tempId: productTempId, name: product.name, type: "product" }]
-          : [];
+  // Получить все доступные компоненты (из текущего и всех предыдущих шагов)
+  // excludeTempId — исключить саму позицию (чтобы не привязать к себе)
+  const getAvailableComponents = useCallback(
+    (stepIndex: number, excludeTempId?: string): (ConstructorItem & { type: ItemType })[] => {
+      const result: (ConstructorItem & { type: ItemType })[] = [];
+      const allStepItems: [ConstructorItem[], ItemType][] = [
+        [materials, "material"],
+        [blanks, "blank"],
+      ];
+
+      // Включаем текущий шаг и все предыдущие
+      for (let i = 0; i <= stepIndex && i < allStepItems.length; i++) {
+        const [items, type] = allStepItems[i];
+        items
+          .filter((item) => item.name.trim() && item.tempId !== excludeTempId)
+          .forEach((item) => result.push({ ...item, type }));
       }
-      if (stepIndex === 2) {
-        const options: { tempId: string; name: string; type: ItemType }[] = [];
-        if (product.name) {
-          options.push({ tempId: productTempId, name: product.name, type: "product" });
-        }
-        subassemblies.forEach((s) => {
-          if (s.name) options.push({ tempId: s.tempId, name: s.name, type: "subassembly" });
-        });
-        return options;
-      }
-      if (stepIndex === 3) {
-        return parts
-          .filter((p) => p.name)
-          .map((p) => ({ tempId: p.tempId, name: p.name, type: "part" }));
-      }
-      if (stepIndex === 4) {
-        return blanks
-          .filter((b) => b.name)
-          .map((b) => ({ tempId: b.tempId, name: b.name, type: "blank" }));
-      }
-      return [];
+      return result;
     },
-    [product, productTempId, subassemblies, parts, blanks]
+    [materials, blanks]
+  );
+
+  // Получить компоненты привязанные к конкретному parent
+  const getComponentsOf = useCallback(
+    (parentTempId: string): (ConstructorItem & { type: ItemType })[] => {
+      const all: [ConstructorItem[], ItemType][] = [
+        [materials, "material"],
+        [blanks, "blank"],
+      ];
+      const result: (ConstructorItem & { type: ItemType })[] = [];
+      for (const [items, type] of all) {
+        items
+          .filter((i) => i.parentTempId === parentTempId && i.name.trim())
+          .forEach((i) => result.push({ ...i, type }));
+      }
+      return result;
+    },
+    [materials, blanks]
+  );
+
+  // Привязать компонент к parent
+  const attachComponent = useCallback(
+    (componentTempId: string, parentTempId: string) => {
+      const allSetters: [ConstructorItem[], React.Dispatch<React.SetStateAction<ConstructorItem[]>>][] = [
+        [materials, setMaterials],
+        [blanks, setBlanks],
+      ];
+      for (const [items, setter] of allSetters) {
+        if (items.some((i) => i.tempId === componentTempId)) {
+          setter((prev) =>
+            prev.map((i) =>
+              i.tempId === componentTempId ? { ...i, parentTempId: parentTempId } : i
+            )
+          );
+          break;
+        }
+      }
+    },
+    [materials, blanks]
+  );
+
+  // Отвязать компонент от parent
+  const detachComponent = useCallback(
+    (componentTempId: string) => {
+      attachComponent(componentTempId, "");
+    },
+    [attachComponent]
+  );
+
+  // Обновить quantity у компонента
+  const updateComponentQuantity = useCallback(
+    (componentTempId: string, quantity: string) => {
+      const allSetters: [ConstructorItem[], React.Dispatch<React.SetStateAction<ConstructorItem[]>>][] = [
+        [materials, setMaterials],
+        [blanks, setBlanks],
+      ];
+      for (const [items, setter] of allSetters) {
+        if (items.some((i) => i.tempId === componentTempId)) {
+          setter((prev) =>
+            prev.map((i) =>
+              i.tempId === componentTempId ? { ...i, quantity } : i
+            )
+          );
+          break;
+        }
+      }
+    },
+    [materials, blanks]
   );
 
   const addItem = (stepIndex: number) => {
-    const parentOptions = getParentOptions(stepIndex);
     const newItem: ConstructorItem = {
       tempId: nextTempId(),
       name: "",
@@ -133,13 +193,15 @@ export function ConstructorWizard() {
       description: "",
       pricePerUnit: "",
       quantity: "1",
-      parentTempId: parentOptions.length === 1 ? parentOptions[0].tempId : "",
+      stockQuantity: "",
+      parentTempId: "",
+      isPaired: false,
     };
     const setter = settersByStep[stepIndex];
     if (setter) setter((prev) => [newItem, ...prev]);
   };
 
-  const updateItem = (stepIndex: number, tempId: string, field: keyof ConstructorItem, value: string) => {
+  const updateItem = (stepIndex: number, tempId: string, field: keyof ConstructorItem, value: string | boolean) => {
     const setter = settersByStep[stepIndex];
     if (setter) {
       setter((prev) =>
@@ -174,7 +236,7 @@ export function ConstructorWizard() {
       setter((prev) =>
         prev.map((item) =>
           item.tempId === tempId
-            ? { ...item, existingId: undefined, name: "", unit: "pcs", description: "", pricePerUnit: "" }
+            ? { ...item, existingId: undefined, name: "", unit: "pcs", description: "", pricePerUnit: "", stockQuantity: "", isPaired: false }
             : item
         )
       );
@@ -182,18 +244,23 @@ export function ConstructorWizard() {
   };
 
   const removeItem = (stepIndex: number, tempId: string) => {
+    // Отвязать все компоненты привязанные к этому элементу
+    const allSetters = [setMaterials, setBlanks];
+    allSetters.forEach((setter) => {
+      setter((prev) =>
+        prev.map((i) => (i.parentTempId === tempId ? { ...i, parentTempId: "" } : i))
+      );
+    });
     const setter = settersByStep[stepIndex];
     if (setter) setter((prev) => prev.filter((item) => item.tempId !== tempId));
   };
 
   const canGoNext = () => {
-    if (step === 0) return product.name.trim().length > 0;
-    if (step >= 1 && step <= 4) {
-      const items = itemsByStep[step];
-      if (!items || items.length === 0) return true;
-      const filledItems = items.filter((i) => i.name.trim());
-      if (filledItems.length === 0) return true;
-      return filledItems.every((i) => i.parentTempId);
+    if (step >= 0 && step <= 1) {
+      return true; // шаги с items — можно пропустить
+    }
+    if (step === 2) {
+      return product.name.trim().length > 0;
     }
     return true;
   };
@@ -203,18 +270,13 @@ export function ConstructorWizard() {
     setError("");
 
     const allComponents = [
-      ...subassemblies.filter((i) => i.name.trim()),
-      ...parts.filter((i) => i.name.trim()),
-      ...blanks.filter((i) => i.name.trim()),
       ...materials.filter((i) => i.name.trim()),
+      ...blanks.filter((i) => i.name.trim()),
     ];
 
-    // Собираем type для каждого компонента
     const typeMap = new Map<string, ItemType>();
-    subassemblies.forEach((i) => typeMap.set(i.tempId, "subassembly"));
-    parts.forEach((i) => typeMap.set(i.tempId, "part"));
-    blanks.forEach((i) => typeMap.set(i.tempId, "blank"));
     materials.forEach((i) => typeMap.set(i.tempId, "material"));
+    blanks.forEach((i) => typeMap.set(i.tempId, "blank"));
 
     const payload = {
       product: {
@@ -222,9 +284,10 @@ export function ConstructorWizard() {
         unit: product.unit,
         description: product.description,
       },
+      isPaired: isPairedProduct,
       components: allComponents.map((c) => ({
         tempId: c.tempId,
-        parentTempId: c.parentTempId === productTempId ? "product" : c.parentTempId,
+        parentTempId: c.parentTempId === productTempId || !c.parentTempId ? "product" : c.parentTempId,
         existingId: c.existingId,
         name: c.name,
         type: typeMap.get(c.tempId) || "material",
@@ -232,6 +295,8 @@ export function ConstructorWizard() {
         description: c.description || undefined,
         pricePerUnit: c.pricePerUnit ? Number(c.pricePerUnit) : undefined,
         quantity: Number(c.quantity) || 1,
+        stockQuantity: c.stockQuantity ? Number(c.stockQuantity) : undefined,
+        isPaired: c.isPaired,
       })),
     };
 
@@ -262,7 +327,7 @@ export function ConstructorWizard() {
         {STEPS.map((s, i) => (
           <div key={s.type} className="flex items-center">
             <button
-              onClick={() => (i <= step || step === 5) && setStep(i)}
+              onClick={() => (i <= step || step === 3) && setStep(i)}
               className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs whitespace-nowrap transition-colors ${
                 i === step
                   ? "bg-foreground text-background font-medium"
@@ -288,19 +353,19 @@ export function ConstructorWizard() {
           </div>
         ))}
         <div className="flex items-center">
-          <div className={`w-4 h-px mx-0.5 ${step === 5 ? "bg-emerald-500" : "bg-border"}`} />
+          <div className={`w-4 h-px mx-0.5 ${step === 3 ? "bg-emerald-500" : "bg-border"}`} />
           <button
-            onClick={() => step === 5 && setStep(5)}
+            onClick={() => step === 3 && setStep(3)}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs whitespace-nowrap transition-colors ${
-              step === 5
+              step === 3
                 ? "bg-foreground text-background font-medium"
                 : "bg-muted text-muted-foreground"
             }`}
           >
             <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium ${
-              step === 5 ? "bg-background text-foreground" : "bg-muted-foreground/30 text-muted-foreground"
+              step === 3 ? "bg-background text-foreground" : "bg-muted-foreground/30 text-muted-foreground"
             }`}>
-              6
+              4
             </span>
             Итог
           </button>
@@ -331,7 +396,7 @@ export function ConstructorWizard() {
         </div>
 
         <div className="flex gap-2">
-          {step >= 1 && step <= 4 && (
+          {step >= 0 && step <= 1 && (
             <Button
               variant="ghost"
               size="sm"
@@ -342,7 +407,7 @@ export function ConstructorWizard() {
             </Button>
           )}
 
-          {step < 5 && (
+          {step < 3 && (
             <Button
               size="sm"
               className="h-8 text-xs"
@@ -353,7 +418,7 @@ export function ConstructorWizard() {
             </Button>
           )}
 
-          {step === 5 && (
+          {step === 3 && (
             <Button
               size="sm"
               className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
@@ -374,37 +439,50 @@ export function ConstructorWizard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
-          {step === 0 && (
-            <ProductStep
-              product={product}
-              setProduct={setProduct}
-            />
-          )}
-
-          {step >= 1 && step <= 4 && (
+          {/* Шаги 0-1: Сырье, Заготовки */}
+          {step >= 0 && step <= 1 && (
             <ItemsStep
               step={step}
               stepInfo={STEPS[step]}
               items={itemsByStep[step]!}
-              parentOptions={getParentOptions(step)}
               typeColors={typeColors}
               onAdd={() => addItem(step)}
               onUpdate={(tempId, field, value) => updateItem(step, tempId, field, value)}
               onSelectExisting={(tempId, dbItem) => selectExistingItem(step, tempId, dbItem)}
               onClearExisting={(tempId) => clearExistingItem(step, tempId)}
               onRemove={(tempId) => removeItem(step, tempId)}
+              getAvailableComponents={(excludeTempId) => getAvailableComponents(step, excludeTempId)}
+              getComponentsOf={getComponentsOf}
+              onAttach={attachComponent}
+              onDetach={detachComponent}
+              onUpdateQuantity={updateComponentQuantity}
             />
           )}
 
-          {step === 5 && (
+          {/* Шаг 2: Изделие */}
+          {step === 2 && (
+            <ProductStep
+              product={product}
+              setProduct={setProduct}
+              productTempId={productTempId}
+              isPaired={isPairedProduct}
+              setIsPaired={setIsPairedProduct}
+              getAvailableComponents={() => getAvailableComponents(2, undefined)}
+              getComponentsOf={getComponentsOf}
+              onAttach={attachComponent}
+              onDetach={detachComponent}
+              onUpdateQuantity={updateComponentQuantity}
+            />
+          )}
+
+          {step === 3 && (
             <SummaryStep
               product={product}
               productTempId={productTempId}
-              subassemblies={subassemblies}
-              parts={parts}
               blanks={blanks}
               materials={materials}
               typeColors={typeColors}
+              isPaired={isPairedProduct}
             />
           )}
         </div>
@@ -416,10 +494,9 @@ export function ConstructorWizard() {
               <TreePreview
                 product={product}
                 productTempId={productTempId}
-                subassemblies={subassemblies}
-                parts={parts}
                 blanks={blanks}
                 materials={materials}
+                isPaired={isPairedProduct}
               />
             </div>
           </div>
@@ -459,14 +536,12 @@ function useDbSearch() {
 
   const isSearching = query.trim().length > 0;
 
-  // При поиске — плоский алфавитный список
   const filtered = isSearching
     ? allItems.filter((item) =>
         item.name.toLowerCase().includes(query.toLowerCase())
       )
     : allItems;
 
-  // Без поиска — группировка по типам номенклатуры
   const grouped = isSearching
     ? null
     : (() => {
@@ -489,58 +564,196 @@ function useDbSearch() {
   return { query, setQuery, filtered, grouped, isSearching, loading, load };
 }
 
+// --- Секция компонентов ---
+
+function ComponentsSection({
+  parentTempId,
+  componentsFrom,
+  getAvailableComponents,
+  getComponentsOf,
+  onAttach,
+  onDetach,
+  onUpdateQuantity,
+}: {
+  parentTempId: string;
+  componentsFrom: string;
+  getAvailableComponents: () => (ConstructorItem & { type: ItemType })[];
+  getComponentsOf: (parentTempId: string) => (ConstructorItem & { type: ItemType })[];
+  onAttach: (componentTempId: string, parentTempId: string) => void;
+  onDetach: (componentTempId: string) => void;
+  onUpdateQuantity: (componentTempId: string, quantity: string) => void;
+}) {
+  const [showPicker, setShowPicker] = useState(false);
+
+  const attached = getComponentsOf(parentTempId);
+  const available = getAvailableComponents().filter(
+    (c) => c.parentTempId === "" || c.parentTempId === parentTempId
+  );
+  const unattached = available.filter((c) => c.parentTempId !== parentTempId);
+
+  return (
+    <div className="border-t border-border pt-2 mt-2">
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="text-xs text-muted-foreground font-medium">
+          Компоненты (из {componentsFrom})
+        </label>
+        {unattached.length > 0 && (
+          <button
+            onClick={() => setShowPicker(!showPicker)}
+            className="text-xs text-blue-600 hover:text-blue-800 transition-colors"
+          >
+            {showPicker ? "Скрыть" : "+ Добавить"}
+          </button>
+        )}
+      </div>
+
+      {attached.length === 0 && !showPicker && (
+        <p className="text-xs text-muted-foreground/60">Нет компонентов</p>
+      )}
+
+      {attached.map((comp) => (
+        <div key={comp.tempId} className="flex items-center gap-2 py-1">
+          <Badge variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${typeColors[comp.type]}`}>
+            {itemTypeLabels[comp.type].slice(0, 3)}
+          </Badge>
+          <span className="text-xs text-foreground truncate flex-1">{comp.name}</span>
+          <Input
+            type="number"
+            value={comp.quantity}
+            onChange={(e) => onUpdateQuantity(comp.tempId, e.target.value)}
+            className="h-7 text-xs w-16"
+            min="0.01"
+            step="0.01"
+          />
+          <button
+            onClick={() => onDetach(comp.tempId)}
+            className="text-xs text-red-500 hover:text-red-700 shrink-0"
+          >
+            x
+          </button>
+        </div>
+      ))}
+
+      {showPicker && unattached.length > 0 && (
+        <div className="mt-1 rounded border border-border bg-muted/50 p-2 space-y-0.5 max-h-32 overflow-y-auto">
+          {unattached.map((comp) => (
+            <button
+              key={comp.tempId}
+              onClick={() => {
+                onAttach(comp.tempId, parentTempId);
+                if (unattached.length <= 1) setShowPicker(false);
+              }}
+              className="w-full text-left px-2 py-1 rounded text-xs hover:bg-accent transition-colors flex items-center gap-2"
+            >
+              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${typeColors[comp.type]}`}>
+                {itemTypeLabels[comp.type].slice(0, 3)}
+              </Badge>
+              <span className="truncate">{comp.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // --- Подкомпоненты шагов ---
 
 function ProductStep({
   product,
   setProduct,
+  productTempId,
+  isPaired,
+  setIsPaired,
+  getAvailableComponents,
+  getComponentsOf,
+  onAttach,
+  onDetach,
+  onUpdateQuantity,
 }: {
   product: ProductData;
   setProduct: (p: ProductData) => void;
+  productTempId: string;
+  isPaired: boolean;
+  setIsPaired: (v: boolean) => void;
+  getAvailableComponents: (excludeTempId?: string) => (ConstructorItem & { type: ItemType })[];
+  getComponentsOf: (parentTempId: string) => (ConstructorItem & { type: ItemType })[];
+  onAttach: (componentTempId: string, parentTempId: string) => void;
+  onDetach: (componentTempId: string) => void;
+  onUpdateQuantity: (componentTempId: string, quantity: string) => void;
 }) {
   return (
     <div className="space-y-3">
       <div>
-        <p className="text-sm font-medium text-foreground mb-1">Новое изделие</p>
-        <p className="text-xs text-muted-foreground">Заполните основную информацию об изделии</p>
+        <p className="text-sm font-medium text-foreground mb-1">Изделие</p>
+        <p className="text-xs text-muted-foreground">Заполните информацию об изделии и выберите компоненты</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="sm:col-span-2">
-          <label className="text-xs text-muted-foreground mb-1 block">Название *</label>
-          <Input
-            value={product.name}
-            onChange={(e) => setProduct({ ...product, name: e.target.value })}
-            placeholder="Например: Кронштейн левый"
-            className="h-9 text-sm"
-          />
+      <div className="rounded-lg border border-border bg-card p-3 space-y-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="sm:col-span-2">
+            <label className="text-xs text-muted-foreground mb-1 block">Название *</label>
+            <Input
+              value={product.name}
+              onChange={(e) => setProduct({ ...product, name: e.target.value })}
+              placeholder={isPaired ? "Базовое название (без лев/прав)" : "Например: Кронштейн"}
+              className="h-9 text-sm"
+            />
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isPaired}
+                onChange={(e) => setIsPaired(e.target.checked)}
+                className="rounded border-border"
+              />
+              <span className="text-xs text-foreground">Парная деталь (левая / правая)</span>
+            </label>
+            {isPaired && (
+              <p className="text-[11px] text-muted-foreground mt-1 ml-5">
+                Будет создано 2 изделия: &laquo;{product.name || "..."} левое&raquo; и &laquo;{product.name || "..."} правое&raquo;. Парные заготовки тоже продублируются.
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Единица измерения</label>
+            <Select value={product.unit} onValueChange={(v) => setProduct({ ...product, unit: v })}>
+              <SelectTrigger className="h-9 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(unitLabels).map(([k, v]) => (
+                  <SelectItem key={k} value={k} className="text-sm">
+                    {v}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Описание</label>
+            <Input
+              value={product.description}
+              onChange={(e) => setProduct({ ...product, description: e.target.value })}
+              placeholder="Краткое описание изделия"
+              className="h-9 text-sm"
+            />
+          </div>
         </div>
 
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Единица измерения</label>
-          <Select value={product.unit} onValueChange={(v) => setProduct({ ...product, unit: v })}>
-            <SelectTrigger className="h-9 text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(unitLabels).map(([k, v]) => (
-                <SelectItem key={k} value={k} className="text-sm">
-                  {v}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Описание</label>
-          <Input
-            value={product.description}
-            onChange={(e) => setProduct({ ...product, description: e.target.value })}
-            placeholder="Краткое описание изделия"
-            className="h-9 text-sm"
-          />
-        </div>
+        <ComponentsSection
+          parentTempId={productTempId}
+          componentsFrom="предыдущих шагов"
+          getAvailableComponents={getAvailableComponents}
+          getComponentsOf={getComponentsOf}
+          onAttach={onAttach}
+          onDetach={onDetach}
+          onUpdateQuantity={onUpdateQuantity}
+        />
       </div>
     </div>
   );
@@ -550,26 +763,35 @@ function ItemsStep({
   step,
   stepInfo,
   items,
-  parentOptions,
   typeColors,
   onAdd,
   onUpdate,
   onSelectExisting,
   onClearExisting,
   onRemove,
+  getAvailableComponents,
+  getComponentsOf,
+  onAttach,
+  onDetach,
+  onUpdateQuantity,
 }: {
   step: number;
-  stepInfo: { type: ItemType; label: string; parentType: string };
+  stepInfo: { type: ItemType; label: string; componentsFrom: string };
   items: ConstructorItem[];
-  parentOptions: { tempId: string; name: string; type: ItemType }[];
   typeColors: Record<ItemType, string>;
   onAdd: () => void;
-  onUpdate: (tempId: string, field: keyof ConstructorItem, value: string) => void;
+  onUpdate: (tempId: string, field: keyof ConstructorItem, value: string | boolean) => void;
   onSelectExisting: (tempId: string, dbItem: DbItem) => void;
   onClearExisting: (tempId: string) => void;
   onRemove: (tempId: string) => void;
+  getAvailableComponents: (excludeTempId?: string) => (ConstructorItem & { type: ItemType })[];
+  getComponentsOf: (parentTempId: string) => (ConstructorItem & { type: ItemType })[];
+  onAttach: (componentTempId: string, parentTempId: string) => void;
+  onDetach: (componentTempId: string) => void;
+  onUpdateQuantity: (componentTempId: string, quantity: string) => void;
 }) {
-  const singleParent = parentOptions.length === 1;
+  const hasComponents = step > 0; // у сырья нет компонентов
+  const isMaterial = step === 0;
 
   return (
     <div className="space-y-3">
@@ -582,7 +804,9 @@ function ItemsStep({
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Добавьте позиции или пропустите шаг. Входят в: {stepInfo.parentType}
+            {isMaterial
+              ? "Добавьте сырье и материалы с закупочными ценами"
+              : `Добавьте позиции и выберите компоненты из ${stepInfo.componentsFrom}`}
           </p>
         </div>
         <Button size="sm" variant="outline" className="h-8 text-xs" onClick={onAdd}>
@@ -605,13 +829,18 @@ function ItemsStep({
           item={item}
           idx={idx}
           stepInfo={stepInfo}
-          singleParent={singleParent}
-          parentOptions={parentOptions}
+          isMaterial={isMaterial}
           typeColors={typeColors}
           onUpdate={onUpdate}
           onSelectExisting={onSelectExisting}
           onClearExisting={onClearExisting}
           onRemove={onRemove}
+          hasComponents={hasComponents}
+          getAvailableComponents={getAvailableComponents}
+          getComponentsOf={getComponentsOf}
+          onAttach={onAttach}
+          onDetach={onDetach}
+          onUpdateQuantity={onUpdateQuantity}
         />
       ))}
     </div>
@@ -636,24 +865,34 @@ function ItemCard({
   item,
   idx,
   stepInfo,
-  singleParent,
-  parentOptions,
+  isMaterial,
   typeColors,
   onUpdate,
   onSelectExisting,
   onClearExisting,
   onRemove,
+  hasComponents,
+  getAvailableComponents,
+  getComponentsOf,
+  onAttach,
+  onDetach,
+  onUpdateQuantity,
 }: {
   item: ConstructorItem;
   idx: number;
-  stepInfo: { type: ItemType; label: string; parentType: string };
-  singleParent: boolean;
-  parentOptions: { tempId: string; name: string; type: ItemType }[];
+  stepInfo: { type: ItemType; label: string; componentsFrom: string };
+  isMaterial: boolean;
   typeColors: Record<ItemType, string>;
-  onUpdate: (tempId: string, field: keyof ConstructorItem, value: string) => void;
+  onUpdate: (tempId: string, field: keyof ConstructorItem, value: string | boolean) => void;
   onSelectExisting: (tempId: string, dbItem: DbItem) => void;
   onClearExisting: (tempId: string) => void;
   onRemove: (tempId: string) => void;
+  hasComponents: boolean;
+  getAvailableComponents: (excludeTempId?: string) => (ConstructorItem & { type: ItemType })[];
+  getComponentsOf: (parentTempId: string) => (ConstructorItem & { type: ItemType })[];
+  onAttach: (componentTempId: string, parentTempId: string) => void;
+  onDetach: (componentTempId: string) => void;
+  onUpdateQuantity: (componentTempId: string, quantity: string) => void;
 }) {
   const { query, setQuery, filtered, grouped, isSearching, loading, load } = useDbSearch();
   const [showSearch, setShowSearch] = useState(false);
@@ -732,7 +971,6 @@ function ItemCard({
           />
           {loading && <p className="text-xs text-muted-foreground">Загрузка...</p>}
 
-          {/* При поиске — плоский алфавитный список */}
           {!loading && isSearching && filtered.length > 0 && (
             <div className="max-h-48 overflow-y-auto space-y-0.5">
               {filtered.map((dbItem) => (
@@ -741,7 +979,6 @@ function ItemCard({
             </div>
           )}
 
-          {/* Без поиска — группировка по типам номенклатуры */}
           {!loading && !isSearching && grouped && grouped.length > 0 && (
             <div className="max-h-48 overflow-y-auto space-y-1">
               {grouped.map((group) => {
@@ -822,7 +1059,7 @@ function ItemCard({
             <Input
               value={item.pricePerUnit}
               onChange={(e) => onUpdate(item.tempId, "pricePerUnit", e.target.value)}
-              placeholder="Расценка, ₽"
+              placeholder={isMaterial ? "Закупочная цена, руб" : "Расценка, руб"}
               className="h-8 text-sm"
               type="number"
               min="0"
@@ -830,7 +1067,19 @@ function ItemCard({
             />
           </div>
 
-          <div className="sm:col-span-2">
+          <div>
+            <Input
+              value={item.stockQuantity}
+              onChange={(e) => onUpdate(item.tempId, "stockQuantity", e.target.value)}
+              placeholder="Количество"
+              className="h-8 text-sm"
+              type="number"
+              min="0"
+              step="0.01"
+            />
+          </div>
+
+          <div>
             <Input
               value={item.description}
               onChange={(e) => onUpdate(item.tempId, "description", e.target.value)}
@@ -841,42 +1090,31 @@ function ItemCard({
         </div>
       )}
 
-      {/* Количество и родитель — показываем всегда */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Кол-во на 1 ед. родителя</label>
-          <Input
-            type="number"
-            value={item.quantity}
-            onChange={(e) => onUpdate(item.tempId, "quantity", e.target.value)}
-            placeholder="Кол-во"
-            className="h-8 text-sm"
-            min="0.01"
-            step="0.01"
+      {/* Чекбокс "Парная" для заготовок */}
+      {hasComponents && (
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={item.isPaired}
+            onChange={(e) => onUpdate(item.tempId, "isPaired", e.target.checked)}
+            className="rounded border-border"
           />
-        </div>
+          <span className="text-xs text-foreground">Парная (лев/прав)</span>
+        </label>
+      )}
 
-        {!singleParent && parentOptions.length > 0 && (
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Входит в</label>
-            <Select
-              value={item.parentTempId || undefined}
-              onValueChange={(v) => onUpdate(item.tempId, "parentTempId", v)}
-            >
-              <SelectTrigger className="h-8 text-sm">
-                <SelectValue placeholder="Выберите родителя" />
-              </SelectTrigger>
-              <SelectContent>
-                {parentOptions.map((p) => (
-                  <SelectItem key={p.tempId} value={p.tempId} className="text-sm">
-                    [{itemTypeLabels[p.type]}] {p.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-      </div>
+      {/* Секция компонентов (для шагов начиная с заготовок) */}
+      {hasComponents && item.name.trim() && (
+        <ComponentsSection
+          parentTempId={item.tempId}
+          componentsFrom={stepInfo.componentsFrom}
+          getAvailableComponents={() => getAvailableComponents(item.tempId)}
+          getComponentsOf={getComponentsOf}
+          onAttach={onAttach}
+          onDetach={onDetach}
+          onUpdateQuantity={onUpdateQuantity}
+        />
+      )}
     </div>
   );
 }
@@ -884,36 +1122,35 @@ function ItemCard({
 function SummaryStep({
   product,
   productTempId,
-  subassemblies,
-  parts,
   blanks,
   materials,
   typeColors,
+  isPaired,
 }: {
   product: ProductData;
   productTempId: string;
-  subassemblies: ConstructorItem[];
-  parts: ConstructorItem[];
   blanks: ConstructorItem[];
   materials: ConstructorItem[];
   typeColors: Record<ItemType, string>;
+  isPaired: boolean;
 }) {
   const allItems = [
-    ...subassemblies.filter((i) => i.name),
-    ...parts.filter((i) => i.name),
-    ...blanks.filter((i) => i.name),
     ...materials.filter((i) => i.name),
+    ...blanks.filter((i) => i.name),
   ];
 
   const newItems = allItems.filter((i) => !i.existingId);
   const existingItems = allItems.filter((i) => i.existingId);
+  const linkedItems = allItems.filter((i) => i.parentTempId);
+  const pairedBlanks = blanks.filter((i) => i.name && i.isPaired);
 
   const counts = {
-    subassembly: subassemblies.filter((i) => i.name).length,
-    part: parts.filter((i) => i.name).length,
-    blank: blanks.filter((i) => i.name).length,
     material: materials.filter((i) => i.name).length,
+    blank: blanks.filter((i) => i.name).length,
   };
+
+  const productCount = isPaired ? 2 : 1;
+  const extraPairedItems = isPaired ? pairedBlanks.length : 0;
 
   return (
     <div className="space-y-3">
@@ -924,8 +1161,17 @@ function SummaryStep({
         </p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {(["subassembly", "part", "blank", "material"] as const).map((type) => (
+      {isPaired && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-2.5">
+          <p className="text-xs text-blue-700 font-medium">Парная деталь</p>
+          <p className="text-[11px] text-blue-600 mt-0.5">
+            Будет создано 2 изделия (левое/правое){pairedBlanks.length > 0 && `, ${pairedBlanks.length} заготовок продублировано`}.
+          </p>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-2">
+        {(["material", "blank"] as const).map((type) => (
           <div key={type} className="rounded-lg border border-border bg-card p-2.5 text-center">
             <p className="text-lg font-semibold text-foreground">{counts[type]}</p>
             <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${typeColors[type]}`}>
@@ -940,7 +1186,9 @@ function SummaryStep({
           <Badge variant="outline" className={`text-xs px-2 py-0 ${typeColors.product}`}>
             {itemTypeLabels.product}
           </Badge>
-          <span className="text-sm font-medium text-foreground">{product.name}</span>
+          <span className="text-sm font-medium text-foreground">
+            {isPaired ? `${product.name} (лев/прав)` : product.name}
+          </span>
           <span className="text-xs text-muted-foreground">
             ({unitLabels[product.unit as keyof typeof unitLabels]})
           </span>
@@ -959,7 +1207,7 @@ function SummaryStep({
       )}
 
       <p className="text-xs text-muted-foreground">
-        Будет создано: 1 изделие, {newItems.length} новых компонентов, {existingItems.length} привязано из базы, {allItems.length} BOM-связей.
+        Будет создано: {productCount} {productCount === 2 ? "изделия" : "изделие"}, {newItems.length + extraPairedItems} новых компонентов, {existingItems.length} привязано из базы, {linkedItems.length * productCount} BOM-связей.
       </p>
     </div>
   );

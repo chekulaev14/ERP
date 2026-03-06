@@ -48,12 +48,12 @@ export function OperationsTab({ items, balances, onRefresh }: Props) {
       return i.type === "material";
     }
     if (opType === "production") {
-      // Приход с производства: заготовки, детали, подсборки
-      return i.type === "blank" || i.type === "part" || i.type === "subassembly";
+      // Приход с производства: заготовки
+      return i.type === "blank";
     }
     if (opType === "assembly") {
-      // Сборка: подсборки и изделия (то, что собирается из компонентов)
-      return (i.type === "subassembly" || i.type === "product") && getChildren(i.id).length > 0;
+      // Сборка: изделия (то, что собирается из компонентов)
+      return i.type === "product" && getChildren(i.id).length > 0;
     }
     return false;
   });
@@ -313,8 +313,6 @@ export function OperationsTab({ items, balances, onRefresh }: Props) {
 const typeColors: Record<ItemType, string> = {
   material: "bg-amber-100 text-amber-800 border-amber-300",
   blank: "bg-orange-100 text-orange-800 border-orange-300",
-  part: "bg-blue-100 text-blue-800 border-blue-300",
-  subassembly: "bg-purple-100 text-purple-800 border-purple-300",
   product: "bg-emerald-100 text-emerald-800 border-emerald-300",
 };
 

@@ -29,12 +29,10 @@ interface Props {
 const typeColors: Record<ItemType, string> = {
   material: "bg-amber-100 text-amber-800 border-amber-300",
   blank: "bg-orange-100 text-orange-800 border-orange-300",
-  part: "bg-blue-100 text-blue-800 border-blue-300",
-  subassembly: "bg-purple-100 text-purple-800 border-purple-300",
   product: "bg-emerald-100 text-emerald-800 border-emerald-300",
 };
 
-const typeOrder: ItemType[] = ["material", "blank", "part", "subassembly", "product"];
+const typeOrder: ItemType[] = ["material", "blank", "product"];
 
 export function StockTab({ items, balances, onRefresh }: Props) {
   const router = useRouter();
@@ -73,12 +71,10 @@ export function StockTab({ items, balances, onRefresh }: Props) {
     const groups: Record<ItemType, NomenclatureItem[]> = {
       material: [],
       blank: [],
-      part: [],
-      subassembly: [],
       product: [],
     };
     for (const item of filtered) {
-      groups[item.type].push(item);
+      if (groups[item.type]) groups[item.type].push(item);
     }
     for (const type of typeOrder) {
       groups[type].sort((a, b) => a.name.localeCompare(b.name, "ru"));

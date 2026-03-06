@@ -30,13 +30,11 @@ interface Props {
 const typeColors: Record<ItemType, string> = {
   material: "bg-amber-100 text-amber-800 border-amber-300",
   blank: "bg-orange-100 text-orange-800 border-orange-300",
-  part: "bg-blue-100 text-blue-800 border-blue-300",
-  subassembly: "bg-purple-100 text-purple-800 border-purple-300",
   product: "bg-emerald-100 text-emerald-800 border-emerald-300",
 };
 
 // От сырья к изделию
-const typeOrder: ItemType[] = ["material", "blank", "part", "subassembly", "product"];
+const typeOrder: ItemType[] = ["material", "blank", "product"];
 
 const emptyForm = {
   name: "",
@@ -45,13 +43,13 @@ const emptyForm = {
   unitId: "pcs" as string,
   categoryId: "",
   pricePerUnit: "",
+  quantity: "",
 };
 
 export function NomenclatureTab({ items, balances }: Props) {
   const router = useRouter();
   const { editMode, refresh } = useWarehouse();
   const [search, setSearch] = useState("");
-  const [filterCategory, setFilterCategory] = useState<string>("all");
   const [expandedTypes, setExpandedTypes] = useState<Set<ItemType>>(new Set());
   const [showAddForm, setShowAddForm] = useState(false);
   const [addForm, setAddForm] = useState({ ...emptyForm });
@@ -71,36 +69,25 @@ export function NomenclatureTab({ items, balances }: Props) {
   };
 
   const filtered = useMemo(() => {
-    let result = items;
-
-    if (filterCategory !== "all") {
-      result = result.filter((i) => i.category === filterCategory);
-    }
-
-    if (search) {
-      const q = search.toLowerCase();
-      result = result.filter(
-        (i) =>
-          i.name.toLowerCase().includes(q) ||
-          i.id.toLowerCase().includes(q) ||
-          (i.description && i.description.toLowerCase().includes(q))
-      );
-    }
-
-    return result;
-  }, [items, search, filterCategory]);
+    if (!search) return items;
+    const q = search.toLowerCase();
+    return items.filter(
+      (i) =>
+        i.name.toLowerCase().includes(q) ||
+        i.id.toLowerCase().includes(q) ||
+        (i.description && i.description.toLowerCase().includes(q))
+    );
+  }, [items, search]);
 
   // Группировка по типам
   const grouped = useMemo(() => {
     const groups: Record<ItemType, NomenclatureItem[]> = {
       material: [],
       blank: [],
-      part: [],
-      subassembly: [],
       product: [],
     };
     for (const item of filtered) {
-      groups[item.type].push(item);
+      if (groups[item.type]) groups[item.type].push(item);
     }
     // Сортировка внутри каждой группы
     for (const type of typeOrder) {
@@ -126,12 +113,28 @@ export function NomenclatureTab({ items, balances }: Props) {
     setAddSaving(true);
     setAddError("");
     try {
+      const { quantity, ...nomData } = addForm;
       const res = await fetch("/api/nomenclature", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(addForm),
+        body: JSON.stringify(nomData),
       });
       if (res.ok) {
+        const created = await res.json();
+        // Если указано количество — записать начальный остаток
+        const qty = Number(quantity);
+        if (qty > 0) {
+          await fetch("/api/stock", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "supplier_income",
+              itemId: created.id,
+              quantity: qty,
+              comment: "Начальный остаток",
+            }),
+          });
+        }
         setShowAddForm(false);
         setAddForm({ ...emptyForm });
         refresh();
@@ -144,7 +147,7 @@ export function NomenclatureTab({ items, balances }: Props) {
     }
   };
 
-  const typeOptions: ItemType[] = ["material", "blank", "part", "subassembly", "product"];
+  const typeOptions: ItemType[] = ["material", "blank", "product"];
   const unitOptions = Object.keys(unitLabels) as Array<keyof typeof unitLabels>;
 
   return (
@@ -156,20 +159,6 @@ export function NomenclatureTab({ items, balances }: Props) {
           onChange={(e) => setSearch(e.target.value)}
           className="bg-card border-border text-foreground placeholder:text-muted-foreground text-sm h-9 w-full sm:max-w-xs"
         />
-
-        <select
-          value={filterCategory}
-          onChange={(e) => setFilterCategory(e.target.value)}
-          className="bg-card border border-border text-foreground text-sm rounded px-2 h-9 w-full sm:w-auto"
-        >
-          <option value="all">Все категории</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-          <option value="">Без категории</option>
-        </select>
 
         {editMode && (
           <Button
@@ -250,6 +239,17 @@ export function NomenclatureTab({ items, balances }: Props) {
                 onChange={(e) => setAddForm({ ...addForm, pricePerUnit: e.target.value })}
                 className="h-9 text-sm w-28"
                 placeholder="—"
+              />
+            </div>
+            <div>
+              <label className="text-muted-foreground text-xs block mb-1">Количество</label>
+              <Input
+                type="number"
+                step="0.01"
+                value={addForm.quantity}
+                onChange={(e) => setAddForm({ ...addForm, quantity: e.target.value })}
+                className="h-9 text-sm w-28"
+                placeholder="0"
               />
             </div>
           </div>

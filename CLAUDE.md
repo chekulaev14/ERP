@@ -9,6 +9,7 @@
 - [LOGIC.md](LOGIC.md) — правила интерфейса склада
 - [GUIDE.md](GUIDE.md) — грабли и решения (Next.js, Turbopack)
 - [PROCESSES.html](PROCESSES.html) — блок-схема процессов по ролям
+- [RECIPES.md](RECIPES.md) — логика рецептов (BOM), цепочки производства
 
 ## Архитектура — модульность
 

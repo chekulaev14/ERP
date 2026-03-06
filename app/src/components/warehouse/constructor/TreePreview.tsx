@@ -13,8 +13,6 @@ interface ProductData {
 const typeColors: Record<ItemType, string> = {
   material: "bg-amber-100 text-amber-800 border-amber-300",
   blank: "bg-orange-100 text-orange-800 border-orange-300",
-  part: "bg-blue-100 text-blue-800 border-blue-300",
-  subassembly: "bg-purple-100 text-purple-800 border-purple-300",
   product: "bg-emerald-100 text-emerald-800 border-emerald-300",
 };
 
@@ -25,19 +23,16 @@ interface TreeNode {
   unit: string;
   quantity?: string;
   children: TreeNode[];
+  isPaired?: boolean;
 }
 
 function buildTree(
   productTempId: string,
   product: ProductData,
-  subassemblies: ConstructorItem[],
-  parts: ConstructorItem[],
   blanks: ConstructorItem[],
   materials: ConstructorItem[]
 ): TreeNode {
   const allItems: { item: ConstructorItem; type: ItemType }[] = [
-    ...subassemblies.map((i) => ({ item: i, type: "subassembly" as ItemType })),
-    ...parts.map((i) => ({ item: i, type: "part" as ItemType })),
     ...blanks.map((i) => ({ item: i, type: "blank" as ItemType })),
     ...materials.map((i) => ({ item: i, type: "material" as ItemType })),
   ];
@@ -52,6 +47,7 @@ function buildTree(
         unit: entry.item.unit,
         quantity: entry.item.quantity,
         children: getChildren(entry.item.tempId),
+        isPaired: entry.item.isPaired,
       }));
   }
 
@@ -61,6 +57,29 @@ function buildTree(
     type: "product",
     unit: product.unit,
     children: getChildren(productTempId),
+  };
+}
+
+function buildPairedTree(
+  tree: TreeNode,
+  side: "left" | "right",
+  productName: string
+): TreeNode {
+  const suffix = side === "left" ? " левое" : " правое";
+  const blankSuffix = side === "left" ? " левая" : " правая";
+
+  function mapChildren(children: TreeNode[]): TreeNode[] {
+    return children.map((child) => ({
+      ...child,
+      name: child.isPaired ? child.name + blankSuffix : child.name,
+      children: mapChildren(child.children),
+    }));
+  }
+
+  return {
+    ...tree,
+    name: (productName || "Новое изделие") + suffix,
+    children: mapChildren(tree.children),
   };
 }
 
@@ -94,24 +113,78 @@ function TreeNodeView({ node, depth = 0 }: { node: TreeNode; depth?: number }) {
   );
 }
 
+function UnlinkedItems({
+  blanks,
+  materials,
+  isPaired,
+}: {
+  blanks: ConstructorItem[];
+  materials: ConstructorItem[];
+  isPaired: boolean;
+}) {
+  const unlinkedBlanks = blanks.filter((i) => i.name && !i.parentTempId);
+  const unlinkedMaterials = materials.filter((i) => i.name && !i.parentTempId);
+
+  if (unlinkedBlanks.length === 0 && unlinkedMaterials.length === 0) return null;
+
+  const items: { name: string; type: ItemType; isPaired: boolean }[] = [
+    ...unlinkedBlanks.map((i) => ({ name: i.name, type: "blank" as ItemType, isPaired: i.isPaired })),
+    ...unlinkedMaterials.map((i) => ({ name: i.name, type: "material" as ItemType, isPaired: i.isPaired })),
+  ];
+
+  return (
+    <div className="border-t border-dashed border-border pt-2 mt-2">
+      <p className="text-[10px] text-muted-foreground mb-1">Не привязано:</p>
+      {items.map((item, idx) => (
+        <div key={idx}>
+          {isPaired && item.isPaired ? (
+            <>
+              <div className="flex items-center gap-1.5 py-0.5 pl-2">
+                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${typeColors[item.type]}`}>
+                  {itemTypeLabels[item.type].slice(0, 3)}
+                </Badge>
+                <span className="text-xs text-foreground truncate">{item.name} левая</span>
+              </div>
+              <div className="flex items-center gap-1.5 py-0.5 pl-2">
+                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${typeColors[item.type]}`}>
+                  {itemTypeLabels[item.type].slice(0, 3)}
+                </Badge>
+                <span className="text-xs text-foreground truncate">{item.name} правая</span>
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center gap-1.5 py-0.5 pl-2">
+              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${typeColors[item.type]}`}>
+                {itemTypeLabels[item.type].slice(0, 3)}
+              </Badge>
+              <span className="text-xs text-foreground truncate">{item.name}</span>
+              {item.isPaired && (
+                <span className="text-[10px] text-blue-500 shrink-0">лев/прав</span>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function TreePreview({
   product,
   productTempId,
-  subassemblies,
-  parts,
   blanks,
   materials,
+  isPaired = false,
 }: {
   product: ProductData;
   productTempId: string;
-  subassemblies: ConstructorItem[];
-  parts: ConstructorItem[];
   blanks: ConstructorItem[];
   materials: ConstructorItem[];
+  isPaired?: boolean;
 }) {
-  const tree = buildTree(productTempId, product, subassemblies, parts, blanks, materials);
+  const tree = buildTree(productTempId, product, blanks, materials);
 
-  if (!product.name && subassemblies.length === 0 && parts.length === 0 && blanks.length === 0 && materials.length === 0) {
+  if (!product.name && blanks.length === 0 && materials.length === 0) {
     return (
       <p className="text-xs text-muted-foreground text-center py-2">
         Начните заполнять данные
@@ -119,5 +192,25 @@ export function TreePreview({
     );
   }
 
-  return <TreeNodeView node={tree} />;
+  if (isPaired) {
+    const leftTree = buildPairedTree(tree, "left", product.name);
+    const rightTree = buildPairedTree(tree, "right", product.name);
+    return (
+      <div>
+        <div className="space-y-2">
+          <TreeNodeView node={leftTree} />
+          <div className="border-t border-border" />
+          <TreeNodeView node={rightTree} />
+        </div>
+        <UnlinkedItems blanks={blanks} materials={materials} isPaired={isPaired} />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <TreeNodeView node={tree} />
+      <UnlinkedItems blanks={blanks} materials={materials} isPaired={isPaired} />
+    </div>
+  );
 }

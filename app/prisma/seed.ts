@@ -17,17 +17,13 @@ const prisma = new PrismaClient({ adapter });
 const typeColors: Record<string, string> = {
   material: "amber",
   blank: "orange",
-  part: "blue",
-  subassembly: "purple",
   product: "emerald",
 };
 
 const typeOrder: Record<string, number> = {
   material: 1,
   blank: 2,
-  part: 3,
-  subassembly: 4,
-  product: 5,
+  product: 3,
 };
 
 async function main() {
@@ -111,28 +107,6 @@ async function main() {
     "blank-d340-08kp-1": 90, "blank-180x120-09g2s-4": 110,
     "blank-100x80-09g2s-3": 220, "blank-550x450-08ps-1.2": 45,
     "blank-400x200-amg2-0.8": 80,
-    "part-up100-base": 120, "part-up100-rib-long": 95,
-    "part-up100-rib-cross": 480, "part-up100-plate": 250,
-    "part-pp200-beam": 60, "part-pp200-gusset-l": 55,
-    "part-pp200-gusset-r": 55, "part-pp200-support": 130,
-    "part-ak300-panel": 35, "part-ak300-reinf": 40, "part-ak300-joint": 85,
-    "part-cp100-upper": 70, "part-cp100-lower": 65,
-    "part-cp100-ring": 80, "part-cp100-washer": 90,
-    "part-ks200-clamp": 100, "part-ks200-base": 95, "part-ks200-press": 110,
-    "part-ts100-disc": 45, "part-ts100-cover": 50, "part-ts100-bracket": 60,
-    "part-pk200-shim": 300, "part-pk200-clip": 280, "part-pk200-lock": 320,
-    "part-ksu300-body": 25, "part-ksu300-plate": 30,
-    "part-kd100-base": 40, "part-kd100-rib": 85,
-    "part-kd100-cup": 50, "part-kd100-pad": 45,
-    "part-hv200-upper": 180, "part-hv200-lower": 175, "part-hv200-strap": 400,
-    "part-st300-clip": 2000, "part-st300-damper": 2200,
-    "part-kb100-bottom": 20, "part-kb100-side-l": 22,
-    "part-kb100-side-r": 22, "part-kb100-cross": 50,
-    "part-te200-screen": 35, "part-te200-bracket": 120, "part-te200-vibro": 180,
-    "part-kd300-panel": 30, "part-kd300-edge": 65, "part-kd300-tab": 200,
-    "part-op300-plate": 55, "part-op300-washer": 70, "part-op300-mount": 60,
-    "sub-up100-core": 30, "sub-cp100-pair": 20,
-    "sub-kd100-frame": 15, "sub-kb100-box": 8,
     "prod-up100": 45, "prod-pp200": 30, "prod-ak300": 18,
     "prod-cp100": 25, "prod-ks200": 60, "prod-op300": 35,
     "prod-ts100": 20, "prod-pk200": 80, "prod-ksu300": 12,
