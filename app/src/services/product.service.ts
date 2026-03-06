@@ -1,22 +1,5 @@
 import { prisma } from "@/lib/prisma";
-
-const CODE_PREFIXES: Record<string, string> = {
-  material: "MAT",
-  blank: "BLK",
-  product: "PRD",
-};
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function generateCode(tx: any, typeId: string): Promise<string> {
-  const prefix = CODE_PREFIXES[typeId] || "ITM";
-  const pattern = `${prefix}-%`;
-  const result = await tx.$queryRaw`
-    SELECT MAX(CAST(SUBSTRING(code FROM ${prefix.length + 2}) AS INTEGER)) as max_num
-    FROM items WHERE code LIKE ${pattern}
-  ` as [{ max_num: number | null }];
-  const next = (result[0].max_num ?? 0) + 1;
-  return `${prefix}-${String(next).padStart(3, "0")}`;
-}
+import { getNextCode, toCodeKind } from "./helpers/code-generator";
 
 interface ComponentInput {
   tempId: string;
@@ -46,7 +29,7 @@ async function createItemsAndBom(tx: any, productId: string, components: Compone
     if (comp.existingId) {
       itemId = comp.existingId;
     } else {
-      const code = await generateCode(tx, comp.type);
+      const code = await getNextCode(tx, toCodeKind(comp.type));
       const item = await tx.item.create({
         data: {
           id: crypto.randomUUID(),
@@ -83,7 +66,7 @@ async function createItemsAndBom(tx: any, productId: string, components: Compone
 
 export async function createSingleProduct(product: ProductInput, components: ComponentInput[]) {
   return prisma.$transaction(async (tx) => {
-    const productCode = await generateCode(tx, "product");
+    const productCode = await getNextCode(tx, "PRODUCT");
     const created = await tx.item.create({
       data: {
         id: crypto.randomUUID(),
@@ -121,7 +104,7 @@ export async function createPairedProducts(product: ProductInput, components: Co
       if (comp.existingId) {
         itemId = comp.existingId;
       } else {
-        const code = await generateCode(tx, comp.type);
+        const code = await getNextCode(tx, toCodeKind(comp.type));
         const item = await tx.item.create({
           data: {
             id: crypto.randomUUID(),
@@ -143,7 +126,7 @@ export async function createPairedProducts(product: ProductInput, components: Co
     for (const side of sides) {
       const idMap = new Map<string, string>(sharedIdMap);
 
-      const sideCode = await generateCode(tx, "product");
+      const sideCode = await getNextCode(tx, "PRODUCT");
       const created = await tx.item.create({
         data: {
           id: crypto.randomUUID(),
@@ -165,7 +148,7 @@ export async function createPairedProducts(product: ProductInput, components: Co
         if (comp.existingId) {
           itemId = comp.existingId;
         } else {
-          const compCode = await generateCode(tx, comp.type);
+          const compCode = await getNextCode(tx, toCodeKind(comp.type));
           const item = await tx.item.create({
             data: {
               id: crypto.randomUUID(),

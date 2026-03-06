@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { mapItem } from "./helpers/map-item";
+import { getNextCode, toCodeKind } from "./helpers/code-generator";
 
 interface ItemFilters {
   type?: string;
@@ -50,42 +51,26 @@ export async function createItem(data: {
   pricePerUnit?: number | null;
 }) {
   const typeId = data.typeId || "material";
-  const code = data.code || (await generateCode(typeId));
-  const created = await prisma.item.create({
-    data: {
-      id: crypto.randomUUID(),
-      code,
-      name: data.name,
-      typeId,
-      unitId: data.unitId || "pcs",
-      categoryId: data.categoryId || null,
-      description: data.description || null,
-      images: [],
-      pricePerUnit: data.pricePerUnit ?? null,
-    },
+
+  const created = await prisma.$transaction(async (tx) => {
+    const code = data.code || await getNextCode(tx, toCodeKind(typeId));
+    return tx.item.create({
+      data: {
+        id: crypto.randomUUID(),
+        code,
+        name: data.name,
+        typeId,
+        unitId: data.unitId || "pcs",
+        categoryId: data.categoryId || null,
+        description: data.description || null,
+        images: [],
+        pricePerUnit: data.pricePerUnit ?? null,
+      },
+    });
   });
   return mapItem(created);
 }
 
-const CODE_PREFIXES: Record<string, string> = {
-  material: "MAT",
-  blank: "BLK",
-  product: "PRD",
-};
-
-async function generateCode(typeId: string): Promise<string> {
-  const prefix = CODE_PREFIXES[typeId] || "ITM";
-  const pattern = `${prefix}-%`;
-  const result = await prisma.$queryRaw<[{ max_num: number | null }]>`
-    SELECT MAX(
-      CAST(SUBSTRING(code FROM ${prefix.length + 2}) AS INTEGER)
-    ) as max_num
-    FROM items
-    WHERE code LIKE ${pattern}
-  `;
-  const next = (result[0].max_num ?? 0) + 1;
-  return `${prefix}-${String(next).padStart(3, "0")}`;
-}
 
 export async function updateItem(id: string, data: Record<string, unknown>) {
   const updated = await prisma.item.update({

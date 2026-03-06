@@ -137,7 +137,7 @@
 - [x] 3.2 product.service.ts
   - Заменить generateCode(tx, type) на getNextCode(tx, toCodeKind(type)) (строки 49, 86, 124, 146, 168)
   - Удалить локальные generateCode и CODE_PREFIXES
-- [ ] 3.3 Unique index на code оставить как final guard (уже есть)
+- [x] 3.3 Unique index на code оставить как final guard (уже есть)
 
 ### Тест фазы 3 через Playwright MCP
 
