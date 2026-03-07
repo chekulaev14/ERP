@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -279,6 +280,28 @@ export function OrdersTab() {
             <DialogFooter>
               {detailOrder.status === "PLANNED" && (
                 <>
+                  <ConfirmDialog
+                    title="Удалить заказ?"
+                    description={`Заказ «${detailOrder.itemName}» (${detailOrder.quantityPlanned} шт) будет удалён. Это действие нельзя отменить.`}
+                    confirmLabel="Удалить"
+                    variant="destructive"
+                    onConfirm={async () => {
+                      await handleAction("DELETE", detailOrder.id);
+                      setDetailOrder(null);
+                    }}
+                  >
+                    {(open) => (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-destructive border-destructive/50 hover:bg-destructive/10"
+                        onClick={open}
+                        disabled={actionLoading}
+                      >
+                        Удалить
+                      </Button>
+                    )}
+                  </ConfirmDialog>
                   <Button
                     variant="outline"
                     onClick={() => handleAction("CANCEL", detailOrder.id)}

@@ -22,11 +22,17 @@ const cancelAction = z.object({
   orderId: idSchema,
 });
 
+const deleteAction = z.object({
+  action: z.literal("DELETE"),
+  orderId: idSchema,
+});
+
 export const productionOrderActionSchema = z.discriminatedUnion("action", [
   createAction,
   startAction,
   completeAction,
   cancelAction,
+  deleteAction,
 ]);
 
 export type ProductionOrderActionInput = z.infer<typeof productionOrderActionSchema>;

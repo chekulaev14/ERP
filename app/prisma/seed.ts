@@ -1,9 +1,23 @@
 import pg from "pg";
+import path from "node:path";
+import fs from "node:fs";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client.js";
 import bcrypt from "bcryptjs";
 
-const connectionString = process.env["GORCHEV_DATABASE_URL"] || process.env["DATABASE_URL"] || "";
+function getDatabaseUrl(): string {
+  if (process.env["DATABASE_URL"]) return process.env["DATABASE_URL"];
+  if (process.env["GORCHEV_DATABASE_URL"]) return process.env["GORCHEV_DATABASE_URL"];
+  const globalEnvPath = path.join(process.env["HOME"] || "", ".env.global");
+  if (fs.existsSync(globalEnvPath)) {
+    const content = fs.readFileSync(globalEnvPath, "utf-8");
+    const match = content.match(/^GORCHEV_DATABASE_URL=(.+)$/m);
+    if (match) return match[1].trim();
+  }
+  throw new Error("DATABASE_URL not found. Set GORCHEV_DATABASE_URL in ~/.env.global");
+}
+
+const connectionString = getDatabaseUrl();
 const pool = new pg.Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
@@ -38,6 +52,10 @@ const roles = [
 const defaultAppConfig = [
   { key: "companyName", value: "Производство", description: "Название компании" },
   { key: "companyLogo", value: "", description: "URL логотипа компании" },
+];
+
+const locations = [
+  { id: "MAIN", name: "Основной склад", type: "WAREHOUSE" as const },
 ];
 
 const processGroups = [
@@ -90,6 +108,11 @@ async function seedBase() {
   console.log("Создание конфигурации...");
   for (const c of defaultAppConfig) {
     await prisma.appConfig.upsert({ where: { key: c.key }, update: {}, create: c });
+  }
+
+  console.log("Создание локаций...");
+  for (const l of locations) {
+    await prisma.location.upsert({ where: { id: l.id }, update: l, create: l });
   }
 
   // Admin user (email/password из env или дефолтные)
@@ -240,6 +263,7 @@ async function main() {
     processGroups: await prisma.processGroup.count(),
     processes: await prisma.process.count(),
     config: await prisma.appConfig.count(),
+    locations: await prisma.location.count(),
   };
   console.log(counts);
 }

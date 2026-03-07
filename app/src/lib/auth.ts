@@ -44,6 +44,7 @@ const PUBLIC_ROUTES: RegExp[] = [
   /^\/api\/auth\/login$/,
   /^\/api\/terminal\/auth$/,
   /^\/api\/auth\/logout$/,
+  /^\/api\/health(\/.*)?$/,
 ];
 
 const ROUTE_RULES: RouteRule[] = [

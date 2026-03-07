@@ -43,7 +43,7 @@ export function PartDetail({ part, onSubmit }: PartDetailProps) {
         setTimeout(() => {
           setQuantity("");
           setSubmitted(false);
-        }, 2000);
+        }, 5000);
       }
     }
   };

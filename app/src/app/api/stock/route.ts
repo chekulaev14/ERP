@@ -49,13 +49,15 @@ export async function POST(request: Request) {
           itemId,
           quantity,
           workerId,
+          createdById: auth.actorId,
           comment,
         });
-        return NextResponse.json({ movement: mov, balance: await stockService.getBalance(itemId) });
+        const balance = await stockService.getBalance(itemId);
+        return NextResponse.json({ movement: mov, balance });
       }
 
       case "ASSEMBLY": {
-        const result = await assemble({ itemId, quantity, workerId, comment });
+        const result = await assemble({ itemId, quantity, workerId, createdById: auth.actorId, comment });
         return NextResponse.json(result);
       }
     }

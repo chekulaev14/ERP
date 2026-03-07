@@ -44,6 +44,19 @@
 - [ ] обзор склада, выработка по рабочим, зарплаты
 - [ ] управление пользователями (добавить/удалить рабочего, сменить PIN)
 
+### Модель данных (БД)
+- [x] DB Upgrade этап A — StatusHistory, Location, InventoryOperation, StockBalance, FOR UPDATE, rebuild/reconcile
+- [x] BOM versioning — Bom + BomLine (DRAFT/ACTIVE/ARCHIVED), runtime BomEntry, activateVersion, bomId в ProductionOrder
+- [x] Routing — Routing + RoutingStep, связь с Process (модели без UI)
+- [ ] парные детали — side: enum (LEFT/RIGHT/NONE), baseItemId, переписать конструктор на side вместо суффиксов
+- [ ] партии / lot tracking (отложено — нет запроса от клиента)
+- [ ] прослеживаемость (зависит от lot tracking)
+- [ ] ProductionOperation — факт выполнения по шагам маршрута (отложено)
+- [ ] soft delete Item → status ACTIVE/ARCHIVED (отложено)
+- [ ] cuid() → UUID v7 (при merge данных между клиентами)
+- [ ] партиционирование StockMovement/ProductionLog по createdAt (при больших объёмах)
+- [ ] аналитика: read model → read replica → DWH (по потребности)
+
 ### Общее
 - [x] выбор роли на главной (терминал рабочего / склад)
 - [x] переключатель светлой/тёмной темы

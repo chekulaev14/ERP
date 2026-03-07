@@ -18,6 +18,13 @@ enum MovementType {
   ADJUSTMENT_WRITE_OFF
 }
 
+enum LocationType {
+  WAREHOUSE
+  PRODUCTION
+  WIP
+  SCRAP
+}
+
 enum WorkerRole {
   WORKER
   WAREHOUSE
@@ -29,6 +36,25 @@ enum OrderStatus {
   IN_PROGRESS
   COMPLETED
   CANCELLED
+}
+
+enum BomStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum RoutingStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum InventoryOperationType {
+  SUPPLIER_RECEIPT
+  ASSEMBLY
+  ORDER_COMPLETION
+  ADJUSTMENT
 }
 
 // --- Code Generation ---
@@ -70,6 +96,9 @@ model User {
   updatedItems         Item[]            @relation("ItemUpdater")
   createdStockMovements StockMovement[]  @relation("MovementCreator")
   createdProductionOrders ProductionOrder[] @relation("OrderCreatorUser")
+  orderStatusChanges   ProductionOrderStatusHistory[] @relation("StatusChanger")
+  inventoryOperations  InventoryOperation[]           @relation("OperationCreator")
+  createdBoms          Bom[]                          @relation("BomCreator")
 
   @@map("users")
 }
@@ -81,6 +110,50 @@ model AppConfig {
   description String?
 
   @@map("app_config")
+}
+
+// --- Locations ---
+
+model Location {
+  id   String       @id // стабильный системный код (MAIN, RAW, FG)
+  name String       // отображаемое имя
+  type LocationType
+
+  fromMovements StockMovement[] @relation("FromLocation")
+  toMovements   StockMovement[] @relation("ToLocation")
+  balances      StockBalance[]
+
+  @@map("locations")
+}
+
+// Бизнес-команда, объединяющая несколько движений
+model InventoryOperation {
+  id           String                  @id @default(cuid())
+  operationKey String                  @unique @map("operation_key")
+  type         InventoryOperationType
+  createdById  String?                 @map("created_by_id")
+  createdAt    DateTime                @default(now()) @map("created_at")
+
+  createdBy User?           @relation("OperationCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  movements StockMovement[]
+
+  @@index([type, createdAt])
+  @@map("inventory_operations")
+}
+
+// Кэш остатков (read model, пересчитывается из StockMovement)
+model StockBalance {
+  itemId     String   @map("item_id")
+  locationId String   @map("location_id")
+  quantity   Decimal  @db.Decimal(10, 4)
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  item     Item     @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  location Location @relation(fields: [locationId], references: [id], onDelete: Restrict)
+
+  @@id([itemId, locationId])
+  @@index([locationId])
+  @@map("stock_balances")
 }
 
 // --- Nomenclature & Catalog ---
@@ -131,12 +204,20 @@ model Item {
   unit     Unit      @relation(fields: [unitId], references: [id])
   category Category? @relation(fields: [categoryId], references: [id])
 
-  // BOM связи
+  // BOM связи (runtime)
   childOf  BomEntry[] @relation("BomChild")
   parentOf BomEntry[] @relation("BomParent")
 
-  // Складские движения
+  // BOM версии
+  boms          Bom[]     @relation("BomItem")
+  bomComponents BomLine[] @relation("BomLineComponent")
+
+  // Маршруты
+  routings Routing[]
+
+  // Складские движения и остатки
   stockMovements StockMovement[]
+  stockBalances  StockBalance[]
 
   // Производственные заказы
   productionOrders     ProductionOrder[]
@@ -167,6 +248,45 @@ model BomEntry {
 
   @@unique([parentId, childId])
   @@map("bom_entries")
+}
+
+// Версия BOM
+model Bom {
+  id            String    @id @default(cuid())
+  itemId        String    @map("item_id")
+  version       Int
+  status        BomStatus @default(DRAFT)
+  effectiveFrom DateTime  @map("effective_from")
+  effectiveTo   DateTime? @map("effective_to")
+  createdById   String?   @map("created_by_id")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  item      Item      @relation("BomItem", fields: [itemId], references: [id], onDelete: Restrict)
+  createdBy User?     @relation("BomCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  lines     BomLine[]
+  orders    ProductionOrder[]
+
+  @@unique([itemId, version])
+  @@index([itemId, status])
+  @@map("boms")
+}
+
+// Строка версионного BOM
+model BomLine {
+  id              String   @id @default(cuid())
+  bomId           String   @map("bom_id")
+  lineNo          Int      @map("line_no")
+  componentItemId String   @map("component_item_id")
+  quantity        Decimal  @db.Decimal(10, 4)
+  scrapFactor     Decimal? @db.Decimal(8, 4) @map("scrap_factor")
+  note            String?
+
+  bom           Bom  @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  componentItem Item @relation("BomLineComponent", fields: [componentItemId], references: [id], onDelete: Restrict)
+
+  @@unique([bomId, lineNo])
+  @@index([componentItemId])
+  @@map("bom_lines")
 }
 
 // Рабочие (авторизация по PIN на терминале)
@@ -202,9 +322,8 @@ model ProductionLog {
   worker Worker           @relation(fields: [workerId], references: [id])
   order  ProductionOrder? @relation(fields: [orderId], references: [id])
 
-  @@index([workerId])
-  @@index([createdAt])
-  @@index([orderId])
+  @@index([workerId, createdAt])
+  @@index([orderId, createdAt])
   @@map("production_logs")
 }
 
@@ -226,31 +345,73 @@ model Process {
   groupId String @map("group_id")
   order   Int    @default(0)
 
-  group ProcessGroup @relation(fields: [groupId], references: [id])
+  group        ProcessGroup @relation(fields: [groupId], references: [id])
+  routingSteps RoutingStep[]
 
   @@map("processes")
 }
 
+// Маршрут производства
+model Routing {
+  id        String        @id @default(cuid())
+  itemId    String        @map("item_id")
+  version   Int
+  status    RoutingStatus @default(DRAFT)
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  item  Item          @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  steps RoutingStep[]
+
+  @@unique([itemId, version])
+  @@index([itemId, status])
+  @@map("routings")
+}
+
+// Шаг маршрута
+model RoutingStep {
+  id           String   @id @default(cuid())
+  routingId    String   @map("routing_id")
+  stepNo       Int      @map("step_no")
+  processId    String   @map("process_id")
+  normTimeMin  Decimal? @db.Decimal(10, 2) @map("norm_time_min")
+  setupTimeMin Decimal? @db.Decimal(10, 2) @map("setup_time_min")
+  note         String?
+
+  routing Routing @relation(fields: [routingId], references: [id], onDelete: Cascade)
+  process Process @relation(fields: [processId], references: [id], onDelete: Restrict)
+
+  @@unique([routingId, stepNo])
+  @@index([processId])
+  @@map("routing_steps")
+}
+
 // Складские движения
 model StockMovement {
-  id            String   @id @default(cuid())
-  type          MovementType
-  itemId        String   @map("item_id")
-  quantity      Decimal  @db.Decimal(10, 4)
-  workerId      String?  @map("worker_id")
-  orderId       String?  @map("order_id")
-  comment       String?
-  createdById   String?  @map("created_by_id")
-  createdAt     DateTime @default(now()) @map("created_at")
+  id             String   @id @default(cuid())
+  type           MovementType
+  itemId         String   @map("item_id")
+  quantity       Decimal  @db.Decimal(10, 4)
+  workerId       String?  @map("worker_id")
+  orderId        String?  @map("order_id")
+  operationId    String?  @map("operation_id")
+  fromLocationId String?  @map("from_location_id")
+  toLocationId   String?  @map("to_location_id")
+  comment        String?
+  createdById    String?  @map("created_by_id")
+  createdAt      DateTime @default(now()) @map("created_at")
 
-  item          Item              @relation(fields: [itemId], references: [id], onDelete: Restrict)
-  worker        Worker?           @relation(fields: [workerId], references: [id])
-  order         ProductionOrder?  @relation(fields: [orderId], references: [id])
-  createdByUser User?             @relation("MovementCreator", fields: [createdById], references: [id])
+  item          Item                @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  worker        Worker?             @relation(fields: [workerId], references: [id])
+  order         ProductionOrder?    @relation(fields: [orderId], references: [id])
+  operation     InventoryOperation? @relation(fields: [operationId], references: [id], onDelete: SetNull)
+  fromLocation  Location?           @relation("FromLocation", fields: [fromLocationId], references: [id], onDelete: Restrict)
+  toLocation    Location?           @relation("ToLocation", fields: [toLocationId], references: [id], onDelete: Restrict)
+  createdByUser User?               @relation("MovementCreator", fields: [createdById], references: [id])
 
-  @@index([itemId])
-  @@index([createdAt])
-  @@index([orderId])
+  @@index([itemId, createdAt])
+  @@index([orderId, createdAt])
+  @@index([fromLocationId, createdAt])
+  @@index([toLocationId, createdAt])
   @@map("stock_movements")
 }
 
@@ -262,6 +423,7 @@ model ProductionOrder {
   itemName          String      @map("item_name")
   quantityPlanned   Int         @map("quantity_planned")
   quantityCompleted Int         @default(0) @map("quantity_completed")
+  bomId             String?     @map("bom_id") // версия BOM, по которой создан заказ
   createdBy         String      @map("created_by")
   createdByUserId   String?     @map("created_by_user_id")
   createdAt         DateTime    @default(now()) @map("created_at")
@@ -269,16 +431,34 @@ model ProductionOrder {
   completedAt       DateTime?   @map("completed_at")
 
   item          Item    @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  bom           Bom?    @relation(fields: [bomId], references: [id], onDelete: SetNull)
   creator       Worker  @relation("OrderCreator", fields: [createdBy], references: [id])
   createdByUser User?   @relation("OrderCreatorUser", fields: [createdByUserId], references: [id])
 
   snapshotItems  ProductionOrderItem[]
   productionLogs ProductionLog[]
   stockMovements StockMovement[]
+  statusHistory  ProductionOrderStatusHistory[]
 
-  @@index([status])
-  @@index([createdAt])
+  @@index([status, createdAt])
   @@map("production_orders")
+}
+
+// История статусов заказа
+model ProductionOrderStatusHistory {
+  id          String       @id @default(cuid())
+  orderId     String       @map("order_id")
+  fromStatus  OrderStatus? @map("from_status")
+  toStatus    OrderStatus  @map("to_status")
+  changedById String?      @map("changed_by_id")
+  comment     String?
+  changedAt   DateTime     @default(now()) @map("changed_at")
+
+  order     ProductionOrder @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  changedBy User?           @relation("StatusChanger", fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([orderId, changedAt])
+  @@map("production_order_status_history")
 }
 
 // Snapshot состава заказа (BOM на момент создания)

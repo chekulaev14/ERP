@@ -32,18 +32,27 @@ export async function POST(request: Request) {
       }
 
       case "START": {
-        const order = await orderService.startOrder(parsed.data.orderId);
+        const order = await orderService.startOrder(parsed.data.orderId, auth.actorId);
         return NextResponse.json(order);
       }
 
       case "COMPLETE": {
-        const order = await orderService.completeOrder(parsed.data.orderId, auth.workerId ?? auth.actorId);
+        const order = await orderService.completeOrder(
+          parsed.data.orderId,
+          auth.workerId ?? auth.actorId,
+          auth.actorId,
+        );
         return NextResponse.json(order);
       }
 
       case "CANCEL": {
-        const order = await orderService.cancelOrder(parsed.data.orderId);
+        const order = await orderService.cancelOrder(parsed.data.orderId, auth.actorId);
         return NextResponse.json(order);
+      }
+
+      case "DELETE": {
+        await orderService.deleteOrder(parsed.data.orderId);
+        return NextResponse.json({ ok: true });
       }
     }
   } catch (err) {
