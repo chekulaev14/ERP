@@ -57,6 +57,12 @@ enum InventoryOperationType {
   ADJUSTMENT
 }
 
+enum Side {
+  LEFT
+  RIGHT
+  NONE
+}
+
 // --- Code Generation ---
 
 model CodeCounter {
@@ -199,10 +205,15 @@ model Item {
   description  String?
   images       String[] // массив URL фото
   pricePerUnit Decimal? @map("price_per_unit") @db.Decimal(10, 2)
+  weight       Decimal? @db.Decimal(10, 4)
+  side         Side     @default(NONE)
+  baseItemId   String?  @map("base_item_id")
 
   type     ItemType  @relation(fields: [typeId], references: [id])
   unit     Unit      @relation(fields: [unitId], references: [id])
   category Category? @relation(fields: [categoryId], references: [id])
+  baseItem    Item?   @relation("ItemPair", fields: [baseItemId], references: [id])
+  pairedItems Item[]  @relation("ItemPair")
 
   // BOM связи (runtime)
   childOf  BomEntry[] @relation("BomChild")
