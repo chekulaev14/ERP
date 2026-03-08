@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { ServiceError } from "@/lib/api/handle-route-error";
 import { toNumber } from "./helpers/serialize";
 
 const DEFAULT_LOCATION = "MAIN";
@@ -193,11 +194,7 @@ export async function completeOrder(id: string, workerId: string, changedById?: 
     `;
     if (!order) throw new ProductionOrderError("Заказ не найден");
     if (order.status === "COMPLETED") {
-      const existing = await tx.productionOrder.findUnique({
-        where: { id },
-        include: includeSnapshot,
-      });
-      return existing!;
+      throw new ServiceError("Заказ уже завершён", 409);
     }
     if (order.status !== "IN_PROGRESS") {
       throw new ProductionOrderError("Завершить можно только заказ в работе");

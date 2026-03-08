@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     const parsed = parseBody(createMovementSchema, body);
     if (!parsed.success) return parsed.response;
 
-    const { action, itemId, quantity, comment } = parsed.data;
+    const { action, itemId, quantity, comment, operationKey } = parsed.data;
     const workerId = auth.workerId ?? auth.actorId;
 
     const item = await stockService.validateItemExists(itemId);
@@ -44,16 +44,16 @@ export async function POST(request: Request) {
     switch (action) {
       case "SUPPLIER_INCOME":
       case "PRODUCTION_INCOME": {
-        const mov = await stockService.createMovement({
+        const result = await stockService.createIncomeOperation({
           type: action,
           itemId,
           quantity,
           workerId,
           createdById: auth.actorId,
           comment,
+          operationKey,
         });
-        const balance = await stockService.getBalance(itemId);
-        return NextResponse.json({ movement: mov, balance });
+        return NextResponse.json(result);
       }
 
       case "ASSEMBLY": {

@@ -11,6 +11,7 @@
 - [BACKEND-PRINCIPLES.md](BACKEND-PRINCIPLES.md) — правила backend
 - [FRONTEND-PRINCIPLES.md](FRONTEND-PRINCIPLES.md) — правила frontend
 - [DB-PRINCIPLES.md](DB-PRINCIPLES.md) — правила БД
+- [QA-PRINCIPLES.md](QA-PRINCIPLES.md) — правила тестирования
 
 ## Архитектура — модульность
 

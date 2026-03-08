@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { ServiceError } from "@/lib/api/handle-route-error";
 import { mapItem } from "./helpers/map-item";
 import { toNumber } from "./helpers/serialize";
 
@@ -36,7 +37,7 @@ export async function getParents(childId: string) {
 
 export async function addEntry(parentId: string, childId: string, quantity: number) {
   if (parentId === childId) {
-    throw new Error("Позиция не может быть компонентом самой себя");
+    throw new ServiceError("Позиция не может быть компонентом самой себя", 400);
   }
 
   await checkForCycle(parentId, childId);
@@ -55,7 +56,7 @@ async function checkForCycle(parentId: string, childId: string): Promise<void> {
   while (queue.length > 0) {
     const current = queue.pop()!;
     if (current === childId) {
-      throw new Error("Обнаружен цикл: добавление этой связи создаст циклическую зависимость в BOM");
+      throw new ServiceError("Обнаружен цикл: добавление этой связи создаст циклическую зависимость в BOM", 400);
     }
     if (visited.has(current)) continue;
     visited.add(current);

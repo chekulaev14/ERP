@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { ServiceError } from "@/lib/api/handle-route-error";
 import type { MovementType } from "@/lib/types";
 import { toNumber } from "./helpers/serialize";
 
@@ -103,7 +104,7 @@ export async function createMovement(data: {
         WHERE item_id = ${data.itemId} AND location_id = ${locationId}
       `;
       if (toNumber(row.quantity) < data.quantity) {
-        throw new Error(`Недостаточно остатка: ${toNumber(row.quantity)} < ${data.quantity}`);
+        throw new ServiceError(`Недостаточно остатка: ${toNumber(row.quantity)} < ${data.quantity}`, 400);
       }
     }
 
@@ -128,6 +129,88 @@ export async function createMovement(data: {
     `;
 
     return movement;
+  });
+}
+
+export async function createIncomeOperation(params: {
+  type: "SUPPLIER_INCOME" | "PRODUCTION_INCOME";
+  itemId: string;
+  quantity: number;
+  workerId?: string;
+  createdById?: string;
+  comment?: string;
+  operationKey?: string;
+}) {
+  const { type, itemId, quantity, workerId, createdById, comment, operationKey } = params;
+  const prefix = type === "SUPPLIER_INCOME" ? "si" : "pi";
+  const opKey = operationKey ?? `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  return prisma.$transaction(async (tx) => {
+    // Idempotency: если operationKey уже существует — вернуть существующий результат
+    const existing = await tx.inventoryOperation.findUnique({
+      where: { operationKey: opKey },
+      include: { movements: { select: { id: true, type: true, quantity: true } } },
+    });
+    if (existing) {
+      const bal = await tx.stockBalance.findUnique({
+        where: { itemId_locationId: { itemId, locationId: DEFAULT_LOCATION } },
+      });
+      return {
+        movement: existing.movements[0] ?? { id: existing.id },
+        balance: bal ? toNumber(bal.quantity) : 0,
+        operationKey: opKey,
+      };
+    }
+
+    // Создаём операцию (MovementType → InventoryOperationType)
+    const operation = await tx.inventoryOperation.create({
+      data: { operationKey: opKey, type: "SUPPLIER_RECEIPT", createdById },
+    });
+
+    // Блокируем строку StockBalance (или создаём)
+    await tx.$queryRaw`
+      INSERT INTO stock_balances (item_id, location_id, quantity, updated_at)
+      VALUES (${itemId}, ${DEFAULT_LOCATION}, 0, NOW())
+      ON CONFLICT (item_id, location_id) DO NOTHING
+    `;
+    await tx.$queryRaw`
+      SELECT * FROM stock_balances
+      WHERE item_id = ${itemId} AND location_id = ${DEFAULT_LOCATION}
+      FOR UPDATE
+    `;
+
+    const { fromLocationId, toLocationId } = getLocationsByType(type, DEFAULT_LOCATION);
+
+    const movement = await tx.stockMovement.create({
+      data: {
+        type,
+        itemId,
+        quantity,
+        workerId,
+        comment,
+        createdById,
+        operationId: operation.id,
+        fromLocationId,
+        toLocationId,
+      },
+    });
+
+    await tx.$queryRaw`
+      UPDATE stock_balances
+      SET quantity = quantity + ${quantity}, updated_at = NOW()
+      WHERE item_id = ${itemId} AND location_id = ${DEFAULT_LOCATION}
+    `;
+
+    const [bal] = await tx.$queryRaw<[{ quantity: number }]>`
+      SELECT quantity FROM stock_balances
+      WHERE item_id = ${itemId} AND location_id = ${DEFAULT_LOCATION}
+    `;
+
+    return {
+      movement: { id: movement.id },
+      balance: toNumber(bal.quantity),
+      operationKey: opKey,
+    };
   });
 }
 

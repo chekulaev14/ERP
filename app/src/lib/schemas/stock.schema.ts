@@ -6,6 +6,7 @@ export const createMovementSchema = z.object({
   itemId: idSchema,
   quantity: z.number().positive("Количество должно быть больше 0"),
   comment: z.string().optional(),
+  operationKey: z.string().optional(),
 });
 
 export type CreateMovementInput = z.infer<typeof createMovementSchema>;
