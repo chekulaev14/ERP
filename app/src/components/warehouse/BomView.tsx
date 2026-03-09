@@ -241,10 +241,16 @@ export function BomView({ item, balances }: Props) {
                     </span>
                   </div>
                 )}
-                {potential?.bottleneck && (
-                  <div>
-                    <span className="text-muted-foreground text-xs">Узкое место:</span>
-                    <span className="text-foreground text-sm ml-1">{potential.bottleneck.name}</span>
+                {potential?.breakdown && potential.breakdown.length > 0 && (
+                  <div className="w-full pt-1">
+                    <span className="text-muted-foreground text-xs">Из чего:</span>
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                      {potential.breakdown.map((b) => (
+                        <span key={b.itemId} className="text-xs text-muted-foreground">
+                          <span className="text-foreground font-medium">{b.quantity}</span> из {b.name}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 )}
                 {item.type === "product" && item.weight && (

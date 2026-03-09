@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import {
 import { GroupedAccordion } from "@/components/ui/grouped-accordion";
 import { useWarehouse } from "@/components/warehouse/WarehouseContext";
 import { ItemForm, emptyItemFormValues, type ItemFormValues } from "@/components/warehouse/ItemForm";
-import type { NomenclatureItem, ItemType } from "@/lib/types";
+import type { NomenclatureItem, ItemType, PotentialItem } from "@/lib/types";
 import { itemTypeLabels, unitLabels, typeColors, formatNumber } from "@/lib/constants";
 import { api } from "@/lib/api-client";
 import { createItemSchema } from "@/lib/schemas/nomenclature.schema";
@@ -31,6 +31,21 @@ export function NomenclatureTab({ items, balances }: Props) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [addForm, setAddForm] = useState<ItemFormValues>({ ...emptyItemFormValues });
   const [addSaving, setAddSaving] = useState(false);
+
+  // Потенциал
+  const [potentialMap, setPotentialMap] = useState<Record<string, number>>({});
+  const fetchPotential = useCallback(() => {
+    api.get<{ items: PotentialItem[] }>("/api/stock/potential", { silent: true })
+      .then((d) => {
+        const map: Record<string, number> = {};
+        for (const p of d.items) map[p.itemId] = p.potential;
+        setPotentialMap(map);
+      })
+      .catch(() => {});
+  }, []);
+  useEffect(() => { fetchPotential(); }, [fetchPotential]);
+  const balancesKey = useMemo(() => JSON.stringify(balances), [balances]);
+  useEffect(() => { fetchPotential(); }, [balancesKey, fetchPotential]);
 
   const filtered = useMemo(() => {
     if (!search) return items;
@@ -142,6 +157,7 @@ export function NomenclatureTab({ items, balances }: Props) {
               <TableRow className="border-border hover:bg-transparent">
                 <TableHead className="text-muted-foreground text-sm font-medium h-8 pl-10">Наименование</TableHead>
                 <TableHead className="text-muted-foreground text-sm font-medium h-8 w-20 text-right">Остаток</TableHead>
+                <TableHead className="text-muted-foreground text-sm font-medium h-8 w-24 text-right">Потенциал</TableHead>
                 <TableHead className="text-muted-foreground text-sm font-medium h-8 w-12 text-right">Ед.</TableHead>
               </TableRow>
             </TableHeader>
@@ -171,6 +187,15 @@ export function NomenclatureTab({ items, balances }: Props) {
                     <span className="text-foreground text-sm font-mono">
                       {formatNumber(balances[item.id] ?? 0)}
                     </span>
+                  </TableCell>
+                  <TableCell className="py-2 text-right">
+                    {item.type !== "material" && potentialMap[item.id] !== undefined ? (
+                      <span className={`text-sm font-mono ${potentialMap[item.id] > 0 ? "text-emerald-600" : "text-muted-foreground"}`}>
+                        {formatNumber(potentialMap[item.id])}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">—</span>
+                    )}
                   </TableCell>
                   <TableCell className="py-2 text-right">
                     <span className="text-muted-foreground text-sm">{unitLabels[item.unit]}</span>

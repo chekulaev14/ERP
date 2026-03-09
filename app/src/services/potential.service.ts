@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/services/helpers/serialize";
-import type { PotentialItem, Bottleneck } from "@/lib/types";
+import type { PotentialItem, Bottleneck, PotentialBreakdown } from "@/lib/types";
 
 interface BomLink {
   childId: string;
@@ -102,6 +102,46 @@ function calculateItemPotential(
   return result;
 }
 
+/**
+ * Разбивка потенциала: сколько изделий можно получить из остатков каждого уровня BOM.
+ * Спускается по цепочке, на каждом уровне "забирает" остаток и считает выход.
+ */
+function calculateBreakdown(
+  itemId: string,
+  childrenMap: ChildrenMap,
+  balances: BalancesMap,
+  itemsMap: ItemsMap,
+): PotentialBreakdown[] {
+  const breakdown: PotentialBreakdown[] = [];
+  let currentId = itemId;
+  let multiplier = 1; // кумулятивный расход на 1 изделие верхнего уровня
+
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const children = childrenMap.get(currentId);
+    if (!children || children.length === 0) break;
+
+    // Берём первого ребёнка (линейная цепочка)
+    const child = children[0];
+    multiplier *= child.quantity;
+    const childBalance = balances.get(child.childId) ?? 0;
+    const canMake = multiplier > 0 ? Math.floor(childBalance / multiplier) : 0;
+
+    if (canMake > 0 || childBalance > 0) {
+      const info = itemsMap.get(child.childId);
+      breakdown.push({
+        itemId: child.childId,
+        name: info?.name ?? child.childId,
+        quantity: canMake,
+      });
+    }
+
+    currentId = child.childId;
+  }
+
+  return breakdown;
+}
+
 export async function calculateAllPotentials(filterItemId?: string): Promise<PotentialItem[]> {
   const [bomEntries, stockBalances, items] = await Promise.all([
     prisma.bomEntry.findMany({
@@ -146,6 +186,10 @@ export async function calculateAllPotentials(filterItemId?: string): Promise<Pot
       if (info) potResult.bottleneck.name = info.name;
     }
 
+    const breakdown = filterItemId
+      ? calculateBreakdown(item.id, childrenMap, balances, itemsMap)
+      : undefined;
+
     results.push({
       itemId: item.id,
       name: item.name,
@@ -155,6 +199,7 @@ export async function calculateAllPotentials(filterItemId?: string): Promise<Pot
       potential: potResult.potential,
       canProduce: potResult.canProduce,
       bottleneck: potResult.bottleneck,
+      breakdown,
     });
   }
 

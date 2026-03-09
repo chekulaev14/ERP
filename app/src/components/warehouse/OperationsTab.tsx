@@ -2,19 +2,15 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { api, ApiError } from "@/lib/api-client";
+import { api } from "@/lib/api-client";
 import { createMovementSchema } from "@/lib/schemas/stock.schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import type { NomenclatureItem, ItemType } from "@/lib/types";
+import type { NomenclatureItem } from "@/lib/types";
 import { itemTypeLabels, unitLabels, typeColors, formatNumber } from "@/lib/constants";
-import { useWarehouse } from "@/components/warehouse/WarehouseContext";
 
 interface Props {
   items: NomenclatureItem[];
@@ -22,20 +18,17 @@ interface Props {
   onRefresh: () => void;
 }
 
-type OperationType = "supplier" | "production" | "assembly";
+type OperationType = "supplier" | "shipment";
 
 const opLabels: Record<OperationType, string> = {
   supplier: "Приход от поставщика",
-  production: "Приход с производства",
-  assembly: "Сборка / Комплектация",
+  shipment: "Отгрузка",
 };
 
 export function OperationsTab({ items, balances, onRefresh }: Props) {
-  const { bomChildren, workers } = useWarehouse();
   const [opType, setOpType] = useState<OperationType>("supplier");
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [quantity, setQuantity] = useState("");
-  const [workerId, setWorkerId] = useState("");
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -43,18 +36,14 @@ export function OperationsTab({ items, balances, onRefresh }: Props) {
 
   const availableItems = items.filter((i) => {
     if (opType === "supplier") return i.type === "material";
-    if (opType === "production") return i.type === "blank";
-    if (opType === "assembly") return i.type === "product" && (bomChildren[i.id]?.length ?? 0) > 0;
+    if (opType === "shipment") return i.type === "product";
     return false;
   });
 
   const handleSubmit = async () => {
     if (!selectedItemId || !quantity || Number(quantity) <= 0) return;
 
-    let action: "SUPPLIER_INCOME" | "PRODUCTION_INCOME" | "ASSEMBLY";
-    if (opType === "supplier") action = "SUPPLIER_INCOME";
-    else if (opType === "production") action = "PRODUCTION_INCOME";
-    else action = "ASSEMBLY";
+    const action = opType === "supplier" ? "SUPPLIER_INCOME" : "SHIPMENT";
 
     const payload = {
       action,
@@ -74,45 +63,30 @@ export function OperationsTab({ items, balances, onRefresh }: Props) {
       await api.post("/api/stock", payload, { silent: true });
 
       const itemName = selectedItem?.name || selectedItemId;
-      let msg = "";
-      if (opType === "supplier") {
-        msg = `Оприходовано: ${itemName} — ${quantity} ${unitLabels[selectedItem?.unit || "pcs"]}`;
-      } else if (opType === "production") {
-        const worker = workers.find((w) => w.id === workerId);
-        msg = `Принято с производства: ${itemName} — ${quantity} шт` + (worker ? ` от ${worker.name}` : "");
-      } else {
-        msg = `Собрано: ${itemName} — ${quantity} шт. Компоненты списаны.`;
-      }
+      const unitLabel = unitLabels[selectedItem?.unit || "pcs"];
+      const msg = opType === "supplier"
+        ? `Оприходовано: ${itemName} — ${quantity} ${unitLabel}`
+        : `Отгружено: ${itemName} — ${quantity} ${unitLabel}`;
       toast.success(msg);
       setSelectedItemId(null);
       setQuantity("");
-      setWorkerId("");
       setComment("");
       onRefresh();
-    } catch (err) {
-      if (err instanceof ApiError && err.data.shortages) {
-        const details = err.data.shortages.map((s) =>
-          `${s.name}: нужно ${s.needed}, есть ${s.available}`
-        ).join("; ");
-        toast.error(err.data.error || "Ошибка", { description: details });
-      } else if (err instanceof ApiError) {
-        toast.error(err.data.error || "Ошибка");
-      } else {
-        toast.error("Ошибка соединения");
-      }
+    } catch {
+      // toast shown by api-client при отсутствии silent,
+      // но мы используем silent — ошибка уже обработана в api-client
     } finally {
       setSubmitting(false);
     }
   };
 
-  const assemblyPreview = opType === "assembly" && selectedItem
-    ? (bomChildren[selectedItem.id] || [])
-    : [];
+  const currentBalance = selectedItemId ? (balances[selectedItemId] ?? 0) : 0;
+  const notEnough = opType === "shipment" && Number(quantity) > 0 && Number(quantity) > currentBalance;
 
   return (
     <div className="space-y-4 max-w-lg w-full">
       <div className="flex flex-wrap gap-1">
-        {(["supplier", "production", "assembly"] as const).map((t) => (
+        {(["supplier", "shipment"] as const).map((t) => (
           <Button
             key={t}
             variant="ghost"
@@ -121,6 +95,7 @@ export function OperationsTab({ items, balances, onRefresh }: Props) {
             onClick={() => {
               setOpType(t);
               setSelectedItemId(null);
+              setQuantity("");
             }}
           >
             {opLabels[t]}
@@ -175,23 +150,12 @@ export function OperationsTab({ items, balances, onRefresh }: Props) {
             onChange={(e) => setQuantity(e.target.value)}
             className="bg-background border-border text-foreground text-sm h-9 max-w-32"
           />
+          {notEnough && (
+            <p className="text-destructive text-xs mt-1">
+              На складе: {formatNumber(currentBalance)} {unitLabels[selectedItem?.unit || "pcs"]}
+            </p>
+          )}
         </div>
-
-        {opType === "production" && (
-          <div>
-            <label className="text-muted-foreground text-sm block mb-1">Рабочий</label>
-            <Select value={workerId} onValueChange={setWorkerId}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Выберите рабочего" />
-              </SelectTrigger>
-              <SelectContent>
-                {workers.map((w) => (
-                  <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
 
         <div>
           <label className="text-muted-foreground text-sm block mb-1">Комментарий</label>
@@ -203,32 +167,16 @@ export function OperationsTab({ items, balances, onRefresh }: Props) {
           />
         </div>
 
-        {opType === "assembly" && assemblyPreview.length > 0 && quantity && Number(quantity) > 0 && (
-          <div className="bg-background rounded border border-border p-3">
-            <p className="text-muted-foreground text-xs font-medium mb-1.5">Будет списано:</p>
-            {assemblyPreview.map((child) => {
-              const needed = child.quantity * Number(quantity);
-              const available = balances[child.item.id] ?? 0;
-              const enough = available >= needed;
-              return (
-                <div key={child.item.id} className="flex items-center justify-between py-0.5">
-                  <span className="text-muted-foreground text-sm">{child.item.name}</span>
-                  <span className={`text-sm font-mono ${enough ? "text-muted-foreground" : "text-destructive"}`}>
-                    {formatNumber(needed)} {unitLabels[child.item.unit]}
-                    {!enough && ` (есть ${formatNumber(available)})`}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
         <Button
           className="w-full h-10 text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-30"
           disabled={!selectedItemId || !quantity || Number(quantity) <= 0 || submitting}
           onClick={handleSubmit}
         >
-          {submitting ? "Обработка..." : opType === "assembly" ? "Собрать" : "Оприходовать"}
+          {submitting
+            ? "Обработка..."
+            : opType === "supplier"
+              ? "Оприходовать"
+              : "Отгрузить"}
         </Button>
       </div>
     </div>

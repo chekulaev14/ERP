@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import * as stockService from "@/services/stock.service";
-import { assemble, AssemblyError } from "@/services/assembly.service";
 import { getAuthContext } from "@/lib/auth-helper";
 import { createMovementSchema } from "@/lib/schemas/stock.schema";
 import { parseBody } from "@/lib/schemas/helpers";
@@ -34,7 +33,6 @@ export async function POST(request: Request) {
     if (!parsed.success) return parsed.response;
 
     const { action, itemId, quantity, comment, operationKey } = parsed.data;
-    const workerId = auth.workerId ?? auth.actorId;
 
     const item = await stockService.validateItemExists(itemId);
     if (!item) {
@@ -42,13 +40,11 @@ export async function POST(request: Request) {
     }
 
     switch (action) {
-      case "SUPPLIER_INCOME":
-      case "PRODUCTION_INCOME": {
+      case "SUPPLIER_INCOME": {
         const result = await stockService.createIncomeOperation({
           type: action,
           itemId,
           quantity,
-          workerId,
           createdById: auth.actorId,
           comment,
           operationKey,
@@ -56,18 +52,18 @@ export async function POST(request: Request) {
         return NextResponse.json(result);
       }
 
-      case "ASSEMBLY": {
-        const result = await assemble({ itemId, quantity, workerId, createdById: auth.actorId, comment });
+      case "SHIPMENT": {
+        const result = await stockService.createShipmentOperation({
+          itemId,
+          quantity,
+          createdById: auth.actorId,
+          comment,
+          operationKey,
+        });
         return NextResponse.json(result);
       }
     }
   } catch (err) {
-    if (err instanceof AssemblyError) {
-      return NextResponse.json(
-        { error: err.message, shortages: err.shortages },
-        { status: 400 },
-      );
-    }
     return handleRouteError(err);
   }
 }

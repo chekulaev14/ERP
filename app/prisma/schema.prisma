@@ -16,6 +16,7 @@ enum MovementType {
   ASSEMBLY_INCOME
   ADJUSTMENT_INCOME
   ADJUSTMENT_WRITE_OFF
+  SHIPMENT_WRITE_OFF
 }
 
 enum LocationType {
@@ -55,6 +56,7 @@ enum InventoryOperationType {
   ASSEMBLY
   ORDER_COMPLETION
   ADJUSTMENT
+  SHIPMENT
 }
 
 enum Side {

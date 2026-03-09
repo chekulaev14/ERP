@@ -79,11 +79,6 @@ export function AssemblyTab() {
                 </div>
               </div>
 
-              {item.bottleneck && (
-                <p className="text-muted-foreground text-xs mt-1">
-                  Узкое место: {item.bottleneck.name} ({formatNumber(item.bottleneck.balance)} в наличии, {formatNumber(item.bottleneck.neededPerUnit)} на 1 шт)
-                </p>
-              )}
 
             </div>
           ))}

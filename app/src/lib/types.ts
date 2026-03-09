@@ -32,7 +32,8 @@ export type MovementType =
   | "ASSEMBLY_WRITE_OFF"
   | "ASSEMBLY_INCOME"
   | "ADJUSTMENT_INCOME"
-  | "ADJUSTMENT_WRITE_OFF";
+  | "ADJUSTMENT_WRITE_OFF"
+  | "SHIPMENT_WRITE_OFF";
 
 export interface StockMovement {
   id: string;
@@ -73,6 +74,12 @@ export interface Bottleneck {
   neededPerUnit: number;
 }
 
+export interface PotentialBreakdown {
+  itemId: string;
+  name: string;
+  quantity: number;
+}
+
 export interface PotentialItem {
   itemId: string;
   name: string;
@@ -82,4 +89,5 @@ export interface PotentialItem {
   potential: number;
   canProduce: number;
   bottleneck: Bottleneck | null;
+  breakdown?: PotentialBreakdown[];
 }
