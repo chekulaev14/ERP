@@ -40,6 +40,7 @@ export async function POST(request: Request) {
       categoryId: parsed.data.categoryId ?? null,
       description: parsed.data.description ?? null,
       pricePerUnit: parsed.data.pricePerUnit ?? null,
+      weight: parsed.data.weight ?? null,
     });
 
     return NextResponse.json(item, { status: 201 });

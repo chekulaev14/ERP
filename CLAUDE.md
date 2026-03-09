@@ -35,6 +35,7 @@ Frontend:
 - NEVER оставляй deprecated паттерн при внедрении нового
 
 DB:
+- ALWAYS после изменения schema.prisma — запускай `npx prisma generate`. Если dev server уже запущен — перезапусти его (HMR не подхватывает generated client)
 - NEVER используй Float → Decimal. NEVER пропускай FK/CHECK/NOT NULL/RESTRICT
 - NEVER изменяй/удаляй StockMovement — append-only ledger
 - NEVER создавай движение без InventoryOperation + operationKey

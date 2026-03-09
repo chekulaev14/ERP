@@ -62,8 +62,20 @@ export async function POST(request: Request) {
         });
         return NextResponse.json(result);
       }
+
+      case "ADJUSTMENT": {
+        const result = await stockService.createAdjustmentOperation({
+          itemId,
+          quantity,
+          createdById: auth.actorId,
+          comment,
+          operationKey,
+        });
+        return NextResponse.json(result);
+      }
     }
   } catch (err) {
+    console.error("[DEBUG stock POST]", err);
     return handleRouteError(err);
   }
 }

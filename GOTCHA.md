@@ -53,3 +53,15 @@ JWT_SECRET=erp-dev-secret-key-2026
 Причина: повреждённый бинарник @next/swc-darwin-arm64 после неполного npm install.
 
 Решение: `cd app && npm install @next/swc-darwin-arm64`
+
+---
+
+## 6. POST /api/nomenclature возвращает 500 — Unknown argument
+
+Симптом: создание номенклатуры падает с 500 «Внутренняя ошибка сервера». В серверном стеке — `PrismaClientValidationError: Unknown argument 'weight'`.
+
+Причина: после добавления нового поля в schema.prisma не был запущен `prisma generate`. Next.js кэширует старый Prisma client в `.next`.
+
+Решение: `cd app && npx prisma generate && rm -rf .next` + перезапустить dev server.
+
+Правило: после любого изменения schema.prisma — всегда `npx prisma generate`. Если ошибка не уходит — удалить `.next`.

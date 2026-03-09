@@ -298,6 +298,95 @@ export async function createShipmentOperation(params: {
   });
 }
 
+export async function createAdjustmentOperation(params: {
+  itemId: string;
+  quantity: number; // положительное — приход, отрицательное — списание
+  createdById?: string;
+  comment?: string;
+  operationKey?: string;
+}) {
+  const { itemId, quantity, createdById, comment, operationKey } = params;
+  const opKey = operationKey ?? `adj-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const isIncome = quantity > 0;
+  const absQty = Math.abs(quantity);
+  const movementType: MovementType = isIncome ? "ADJUSTMENT_INCOME" : "ADJUSTMENT_WRITE_OFF";
+
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.inventoryOperation.findUnique({
+      where: { operationKey: opKey },
+      include: { movements: { select: { id: true, type: true, quantity: true } } },
+    });
+    if (existing) {
+      const bal = await tx.stockBalance.findUnique({
+        where: { itemId_locationId: { itemId, locationId: DEFAULT_LOCATION } },
+      });
+      return {
+        movement: existing.movements[0] ?? { id: existing.id },
+        balance: bal ? toNumber(bal.quantity) : 0,
+        operationKey: opKey,
+      };
+    }
+
+    await tx.$queryRaw`
+      INSERT INTO stock_balances (item_id, location_id, quantity, updated_at)
+      VALUES (${itemId}, ${DEFAULT_LOCATION}, 0, NOW())
+      ON CONFLICT (item_id, location_id) DO NOTHING
+    `;
+    await tx.$queryRaw`
+      SELECT * FROM stock_balances
+      WHERE item_id = ${itemId} AND location_id = ${DEFAULT_LOCATION}
+      FOR UPDATE
+    `;
+
+    if (!isIncome) {
+      const [row] = await tx.$queryRaw<[{ quantity: number }]>`
+        SELECT quantity FROM stock_balances
+        WHERE item_id = ${itemId} AND location_id = ${DEFAULT_LOCATION}
+      `;
+      if (toNumber(row.quantity) < absQty) {
+        throw new ServiceError(`Недостаточно остатка: ${toNumber(row.quantity)} < ${absQty}`, 400);
+      }
+    }
+
+    const operation = await tx.inventoryOperation.create({
+      data: { operationKey: opKey, type: "ADJUSTMENT", createdById },
+    });
+
+    const { fromLocationId, toLocationId } = getLocationsByType(movementType, DEFAULT_LOCATION);
+
+    const movement = await tx.stockMovement.create({
+      data: {
+        type: movementType,
+        itemId,
+        quantity: absQty,
+        comment,
+        createdById,
+        operationId: operation.id,
+        fromLocationId,
+        toLocationId,
+      },
+    });
+
+    const delta = isIncome ? absQty : -absQty;
+    await tx.$queryRaw`
+      UPDATE stock_balances
+      SET quantity = quantity + ${delta}, updated_at = NOW()
+      WHERE item_id = ${itemId} AND location_id = ${DEFAULT_LOCATION}
+    `;
+
+    const [bal] = await tx.$queryRaw<[{ quantity: number }]>`
+      SELECT quantity FROM stock_balances
+      WHERE item_id = ${itemId} AND location_id = ${DEFAULT_LOCATION}
+    `;
+
+    return {
+      movement: { id: movement.id },
+      balance: toNumber(bal.quantity),
+      operationKey: opKey,
+    };
+  });
+}
+
 export async function validateItemExists(itemId: string) {
   const item = await prisma.item.findUnique({ where: { id: itemId } });
   if (!item) return null;
