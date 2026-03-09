@@ -133,7 +133,7 @@ Toast (sonner), SearchableSelect, GroupedAccordion, ConfirmDialog — в compone
 
 ### Компоненты
 
-ItemForm — единая форма Item (create/edit), строится по field config (lib/item-field-config.ts). BomView — оркестратор, делегирует в BomTree + BomEntryForm. ConstructorWizard — декомпозирован на 10 файлов, управляется useReducer + wizard-reducer.ts.
+ItemForm — единая форма Item (create/edit), строится по field config (lib/item-field-config.ts). BomView — оркестратор, делегирует в BomTree + BomEntryForm. Конструктор BOM-цепочек (constructor/) — визуальный редактор: ChainConstructor (оркестратор), ChainBlock (блок позиции), ChainArrow (стрелка с quantity). Сохраняет связи через POST /api/bom.
 
 WarehouseContext — центральный контекст склада. Два уровня refresh: refresh() (балансы) / refreshAll() (все данные).
 

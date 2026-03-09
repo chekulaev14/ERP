@@ -6,20 +6,20 @@ import { useWarehouse } from "./WarehouseContext";
 
 const baseItems = [
   { href: "/warehouse/nomenclature", label: "Номенклатура" },
-  { href: "/warehouse/stock", label: "Остатки" },
-  { href: "/warehouse/assembly", label: "Сборка" },
   { href: "/warehouse/operations", label: "Операции" },
-  { href: "/warehouse/processes", label: "Процессы" },
-  { href: "/warehouse/orders", label: "Заказы" },
 ];
 
 export function WarehouseNav() {
   const pathname = usePathname();
-  const { session } = useWarehouse();
+  const { session, editMode } = useWarehouse();
 
-  const navItems = session?.role === "DIRECTOR"
-    ? [...baseItems, { href: "/warehouse/production", label: "Выработка" }]
-    : baseItems;
+  let navItems = [...baseItems];
+  if (editMode) {
+    navItems.push({ href: "/warehouse/builder", label: "Конструктор" });
+  }
+  if (session?.role === "DIRECTOR") {
+    navItems.push({ href: "/warehouse/production", label: "Выработка" });
+  }
 
   return (
     <div className="flex gap-1 overflow-x-auto -mx-4 px-4 scrollbar-hide">

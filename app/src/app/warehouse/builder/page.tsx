@@ -1,7 +1,7 @@
 "use client";
 
-import { ConstructorWizard } from "@/components/warehouse/constructor/ConstructorWizard";
+import { ChainConstructor } from "@/components/warehouse/constructor/ChainConstructor";
 
 export default function BuilderPage() {
-  return <ConstructorWizard />;
+  return <ChainConstructor />;
 }
