@@ -18,7 +18,7 @@ type View =
   | { type: "categories" }
   | { type: "products"; category: Category }
   | { type: "parts"; product: Product }
-  | { type: "partDetail"; part: Part; product: Product; fromBlanks?: boolean };
+  | { type: "partDetail"; part: Part; product: Product; fromBlanks?: boolean; fromProducts?: Category };
 
 function sideLabel(side?: string): string {
   if (side === "LEFT") return " (Л)";
@@ -53,6 +53,8 @@ export function CatalogScreen({ workerName, onLogout, onSubmit }: CatalogScreenP
       case "partDetail":
         if (view.fromBlanks) {
           setView({ type: "categories" });
+        } else if (view.fromProducts) {
+          setView({ type: "products", category: view.fromProducts });
         } else {
           setView({ type: "parts", product: view.product });
         }
@@ -140,7 +142,6 @@ export function CatalogScreen({ workerName, onLogout, onSubmit }: CatalogScreenP
                           </div>
                           <div className="p-1.5">
                             <h3 className="text-foreground font-medium text-xs">{cat.name}</h3>
-                            <p className="text-muted-foreground/70 text-[10px]">{cat.products.length} изд.</p>
                           </div>
                         </Card>
                       ))}
@@ -169,9 +170,6 @@ export function CatalogScreen({ workerName, onLogout, onSubmit }: CatalogScreenP
                             <h3 className="text-foreground font-medium text-xs">
                               {blank.name}{sideLabel(blank.side)}
                             </h3>
-                            {blank.weight != null && (
-                              <p className="text-muted-foreground/70 text-[10px]">{blank.weight} кг</p>
-                            )}
                           </div>
                         </Card>
                       ))}
@@ -187,7 +185,17 @@ export function CatalogScreen({ workerName, onLogout, onSubmit }: CatalogScreenP
                   <Card
                     key={product.id}
                     className="bg-card border-border cursor-pointer hover:border-ring active:bg-accent transition-all overflow-hidden"
-                    onClick={() => setView({ type: "parts", product })}
+                    onClick={() => {
+                      const asPart: Part = {
+                        id: product.id,
+                        name: product.name + sideLabel(product.side),
+                        description: product.description,
+                        images: product.images,
+                        pricePerUnit: 0,
+                        weight: product.weight,
+                      };
+                      setView({ type: "partDetail", part: asPart, product, fromProducts: view.category });
+                    }}
                   >
                     <div className="aspect-square relative">
                       <img
@@ -200,7 +208,6 @@ export function CatalogScreen({ workerName, onLogout, onSubmit }: CatalogScreenP
                       <h3 className="text-foreground font-medium text-xs">
                         {product.name}{sideLabel(product.side)}
                       </h3>
-                      <p className="text-muted-foreground/70 text-[10px]">{product.parts.length} дет.</p>
                     </div>
                   </Card>
                 ))}
