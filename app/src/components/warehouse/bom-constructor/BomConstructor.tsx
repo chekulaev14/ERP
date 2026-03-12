@@ -4,9 +4,10 @@ import { useState, useEffect, useCallback } from "react";
 import { useWarehouse } from "@/components/warehouse/WarehouseContext";
 import { BomItemList } from "./BomItemList";
 import { BomEditor } from "./BomEditor";
-import { api } from "@/lib/api-client";
+import { api, ApiError } from "@/lib/api-client";
 import { toast } from "sonner";
 import type { NomenclatureItem } from "@/lib/types";
+import type { SideValidationError } from "@/services/helpers/validate-side";
 
 export interface BomVersion {
   id: string;
@@ -35,6 +36,7 @@ export function BomConstructor() {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [versions, setVersions] = useState<BomVersion[]>([]);
   const [loading, setLoading] = useState(false);
+  const [sideErrors, setSideErrors] = useState<SideValidationError[]>([]);
 
   // Фильтруем только blanks и products
   const eligibleItems = items.filter((i) => i.type === "blank" || i.type === "product");
@@ -61,34 +63,46 @@ export function BomConstructor() {
     }
   }, [selectedItemId, loadVersions]);
 
+  const extractSideErrors = (err: unknown) => {
+    if (err instanceof ApiError && Array.isArray(err.data.details)) {
+      const errors = err.data.details as SideValidationError[];
+      if (errors.length > 0 && errors[0].code?.startsWith("SIDE_")) {
+        setSideErrors(errors);
+      }
+    }
+  };
+
   const handleCreateDraft = async (lines: { componentItemId: string; quantity: number }[]) => {
     if (!selectedItemId) return;
+    setSideErrors([]);
     try {
       await api.post("/api/bom/versions", { itemId: selectedItemId, lines });
       toast.success("Черновик создан");
       loadVersions(selectedItemId);
-    } catch {
-      // toast by api-client
+    } catch (err) {
+      extractSideErrors(err);
     }
   };
 
   const handleUpdateDraft = async (bomId: string, lines: { componentItemId: string; quantity: number }[]) => {
+    setSideErrors([]);
     try {
       await api.put(`/api/bom/versions/${bomId}`, { lines });
       toast.success("Черновик сохранён");
       if (selectedItemId) loadVersions(selectedItemId);
-    } catch {
-      // toast by api-client
+    } catch (err) {
+      extractSideErrors(err);
     }
   };
 
   const handleActivate = async (bomId: string) => {
+    setSideErrors([]);
     try {
       await api.put(`/api/bom/versions/${bomId}/activate`);
       toast.success("Версия активирована");
       if (selectedItemId) loadVersions(selectedItemId);
-    } catch {
-      // toast by api-client
+    } catch (err) {
+      extractSideErrors(err);
     }
   };
 
@@ -116,6 +130,7 @@ export function BomConstructor() {
             allItems={items}
             versions={versions}
             loading={loading}
+            sideErrors={sideErrors}
             onCreateDraft={handleCreateDraft}
             onUpdateDraft={handleUpdateDraft}
             onActivate={handleActivate}

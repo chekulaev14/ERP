@@ -13,6 +13,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { GroupedAccordion } from "@/components/ui/grouped-accordion";
+import { SideBadge } from "@/components/ui/side-badge";
 import { useWarehouse } from "@/components/warehouse/WarehouseContext";
 import { ItemForm, emptyItemFormValues, type ItemFormValues } from "@/components/warehouse/ItemForm";
 import { SessionItemsList, type SessionItem } from "@/components/warehouse/SessionItemsList";
@@ -277,7 +278,8 @@ export function NomenclatureTab({ items, balances }: Props) {
                   >
                     <TableCell className="py-2 pl-10">
                       <div>
-                        <p className="text-foreground text-sm font-medium">
+                        <p className="text-foreground text-sm font-medium flex items-center gap-1">
+                          <SideBadge side={item.side} />
                           {item.name}
                           {item.type === "product" && item.weight ? (
                             <span className="text-muted-foreground text-xs font-normal ml-2">{item.weight} кг</span>

@@ -90,6 +90,9 @@ const ROUTE_RULES: RouteRule[] = [
   { pattern: /^\/api\/users$/, methods: ["POST"], roles: ["ADMIN"] },
   { pattern: /^\/api\/users\/[^/]+$/, methods: ["PUT", "DELETE"], roles: ["ADMIN"] },
 
+  // Setup (mass import)
+  { pattern: /^\/api\/setup\/(load|validate|import)$/, methods: ["GET", "POST"], roles: ["WAREHOUSE", "DIRECTOR", "ADMIN"] },
+
   // Config
   { pattern: /^\/api\/config$/, methods: ["GET"], roles: ["WAREHOUSE", "DIRECTOR", "ADMIN"] },
   { pattern: /^\/api\/config$/, methods: ["PUT"], roles: ["ADMIN"] },

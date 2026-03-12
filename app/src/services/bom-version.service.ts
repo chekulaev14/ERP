@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "./helpers/serialize";
+import { validateBomSide } from "./helpers/validate-side";
 
 export class BomVersionError extends Error {
   constructor(message: string) {
@@ -65,6 +66,11 @@ export async function createDraft(params: {
 }) {
   const { itemId, createdById, lines } = params;
 
+  // Side-валидация
+  if (lines.length > 0) {
+    await validateBomSideFromPayload(itemId, lines.map((l) => l.componentItemId));
+  }
+
   // Следующая версия
   const maxVersion = await prisma.bom.aggregate({
     where: { itemId },
@@ -104,7 +110,12 @@ export async function activateVersion(bomId: string) {
   return prisma.$transaction(async (tx) => {
     const bom = await tx.bom.findUnique({
       where: { id: bomId },
-      include: { lines: true },
+      include: {
+        item: { select: { id: true, name: true, side: true } },
+        lines: {
+          include: { componentItem: { select: { id: true, name: true, side: true } } },
+        },
+      },
     });
     if (!bom) throw new BomVersionError("Версия BOM не найдена");
     if (bom.status === "ACTIVE") return bom;
@@ -114,6 +125,15 @@ export async function activateVersion(bomId: string) {
     if (bom.lines.length === 0) {
       throw new BomVersionError("Нельзя активировать пустую версию BOM");
     }
+
+    // Side-валидация
+    validateBomSide({
+      parentItem: { name: bom.item.name, side: bom.item.side },
+      components: bom.lines.map((l) => ({
+        name: l.componentItem.name,
+        side: l.componentItem.side,
+      })),
+    });
 
     // Архивируем текущую ACTIVE
     await tx.bom.updateMany({
@@ -142,6 +162,11 @@ export async function updateDraft(bomId: string, lines: { componentItemId: strin
   if (!bom) throw new BomVersionError("Версия BOM не найдена");
   if (bom.status !== "DRAFT") {
     throw new BomVersionError("Можно редактировать только черновик");
+  }
+
+  // Side-валидация
+  if (lines.length > 0) {
+    await validateBomSideFromPayload(bom.itemId, lines.map((l) => l.componentItemId));
   }
 
   return prisma.$transaction(async (tx) => {
@@ -192,5 +217,27 @@ export async function archiveVersion(bomId: string) {
   return prisma.bom.update({
     where: { id: bomId },
     data: { status: "ARCHIVED" },
+  });
+}
+
+// --- Side validation helper ---
+
+async function validateBomSideFromPayload(itemId: string, componentItemIds: string[]) {
+  const allIds = [itemId, ...componentItemIds];
+  const items = await prisma.item.findMany({
+    where: { id: { in: allIds } },
+    select: { id: true, name: true, side: true },
+  });
+  const itemMap = new Map(items.map((it) => [it.id, it]));
+
+  const parentItem = itemMap.get(itemId);
+  if (!parentItem) return;
+
+  validateBomSide({
+    parentItem: { name: parentItem.name, side: parentItem.side },
+    components: componentItemIds.map((cid) => {
+      const c = itemMap.get(cid);
+      return { name: c?.name ?? "", side: c?.side ?? "NONE" };
+    }),
   });
 }

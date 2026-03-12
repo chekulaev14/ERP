@@ -4,9 +4,11 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { SideBadge } from "@/components/ui/side-badge";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { itemTypeLabels, typeColors } from "@/lib/constants";
 import type { NomenclatureItem } from "@/lib/types";
+import type { SideValidationError } from "@/services/helpers/validate-side";
 import type { RoutingData, ProcessGroup, StepPayload } from "./RoutingConstructor";
 
 interface EditInput {
@@ -27,6 +29,7 @@ interface Props {
   routings: RoutingData[];
   processes: ProcessGroup[];
   loading: boolean;
+  sideErrors?: SideValidationError[];
   onCreateRouting: (steps: StepPayload[]) => void;
   onUpdateSteps: (routingId: string, steps: StepPayload[]) => void;
   onActivate: (routingId: string) => void;
@@ -59,7 +62,7 @@ const emptyStep = (): EditStep => ({
   inputs: [],
 });
 
-export function RoutingEditor({ item, allItems, routings, processes, loading, onCreateRouting, onUpdateSteps, onActivate, onDelete }: Props) {
+export function RoutingEditor({ item, allItems, routings, processes, loading, sideErrors = [], onCreateRouting, onUpdateSteps, onActivate, onDelete }: Props) {
   const [steps, setSteps] = useState<EditStep[]>([]);
   const [isDirty, setIsDirty] = useState(false);
 
@@ -172,6 +175,15 @@ export function RoutingEditor({ item, allItems, routings, processes, loading, on
         </div>
       </div>
 
+      {/* Ошибки side-валидации */}
+      {sideErrors.length > 0 && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 space-y-0.5">
+          {sideErrors.map((e, i) => (
+            <div key={i}>{e.message}</div>
+          ))}
+        </div>
+      )}
+
       {/* Шаги */}
       {steps.length === 0 ? (
         <div className="border border-border rounded-lg bg-card p-6 text-center">
@@ -188,8 +200,11 @@ export function RoutingEditor({ item, allItems, routings, processes, loading, on
               (i) => i.id !== step.outputItemId && !usedInputIds.has(i.id),
             );
 
+            const stepErrors = sideErrors.filter((e) => e.stepNo === stepIdx + 1);
+            const hasStepError = stepErrors.length > 0;
+
             return (
-              <div key={stepIdx} className="border border-border rounded-lg bg-card">
+              <div key={stepIdx} className={`border rounded-lg bg-card ${hasStepError ? "border-red-300" : "border-border"}`}>
                 {/* Step header */}
                 <div className="flex items-center gap-2 px-3 py-2 bg-muted/30 border-b border-border">
                   <span className="text-xs font-medium text-muted-foreground">Шаг {stepIdx + 1}</span>
@@ -208,6 +223,7 @@ export function RoutingEditor({ item, allItems, routings, processes, loading, on
                   <span className="text-xs text-muted-foreground ml-auto mr-1">→</span>
 
                   {/* Output item */}
+                  <SideBadge side={allItems.find((i) => i.id === step.outputItemId)?.side} />
                   <SearchableSelect
                     items={allItems.filter((i) => i.id !== item.id || stepIdx === steps.length - 1 ? true : !usedOutputIds.has(i.id) || i.id === step.outputItemId)}
                     value={step.outputItemId || null}
@@ -246,14 +262,16 @@ export function RoutingEditor({ item, allItems, routings, processes, loading, on
                   )}
                   {step.inputs.map((inp, inpIdx) => {
                     const comp = allItems.find((i) => i.id === inp.itemId);
+                    const inputHasError = stepErrors.some((e) => e.inputIndex === inpIdx);
                     return (
-                      <div key={inp.itemId} className="flex items-center gap-2">
+                      <div key={inp.itemId} className={`flex items-center gap-2 ${inputHasError ? "bg-red-50 rounded px-1 -mx-1" : ""}`}>
                         <div className="flex items-center gap-1.5 flex-1 min-w-0">
                           {comp && (
                             <Badge variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${typeColors[comp.type]}`}>
                               {itemTypeLabels[comp.type]}
                             </Badge>
                           )}
+                          <SideBadge side={comp?.side} />
                           <span className="text-xs text-foreground truncate">{comp?.name ?? inp.itemId}</span>
                         </div>
                         <Input

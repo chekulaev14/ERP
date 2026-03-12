@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { SideBadge } from "@/components/ui/side-badge";
 import { Input } from "@/components/ui/input";
 import { itemTypeLabels, typeColors } from "@/lib/constants";
 import type { NomenclatureItem } from "@/lib/types";
@@ -75,6 +76,7 @@ function ItemRow({ item, selected, onSelect }: { item: NomenclatureItem; selecte
         <Badge variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${typeColors[item.type]}`}>
           {itemTypeLabels[item.type]}
         </Badge>
+        <SideBadge side={item.side} />
         <span className="truncate text-foreground">{item.name}</span>
       </div>
       <span className="text-muted-foreground text-[10px] font-mono">{item.code}</span>

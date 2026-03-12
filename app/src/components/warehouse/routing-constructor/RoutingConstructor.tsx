@@ -4,8 +4,9 @@ import { useState, useEffect, useCallback } from "react";
 import { useWarehouse } from "@/components/warehouse/WarehouseContext";
 import { BomItemList } from "@/components/warehouse/bom-constructor/BomItemList";
 import { RoutingEditor } from "./RoutingEditor";
-import { api } from "@/lib/api-client";
+import { api, ApiError } from "@/lib/api-client";
 import { toast } from "sonner";
+import type { SideValidationError } from "@/services/helpers/validate-side";
 
 export interface ProcessInfo {
   id: string;
@@ -54,6 +55,7 @@ export function RoutingConstructor() {
   const [routings, setRoutings] = useState<RoutingData[]>([]);
   const [processes, setProcesses] = useState<ProcessGroup[]>([]);
   const [loading, setLoading] = useState(false);
+  const [sideErrors, setSideErrors] = useState<SideValidationError[]>([]);
 
   const eligibleItems = items.filter((i) => i.type === "blank" || i.type === "product");
   const selectedItem = items.find((i) => i.id === selectedItemId) ?? null;
@@ -85,34 +87,46 @@ export function RoutingConstructor() {
     }
   }, [selectedItemId, loadRoutings]);
 
+  const extractSideErrors = (err: unknown) => {
+    if (err instanceof ApiError && Array.isArray(err.data.details)) {
+      const errors = err.data.details as SideValidationError[];
+      if (errors.length > 0 && errors[0].code?.startsWith("SIDE_")) {
+        setSideErrors(errors);
+      }
+    }
+  };
+
   const handleCreateRouting = async (steps: StepPayload[]) => {
     if (!selectedItemId) return;
+    setSideErrors([]);
     try {
       await api.post("/api/routing", { itemId: selectedItemId, steps });
       toast.success("Маршрут создан");
       loadRoutings(selectedItemId);
-    } catch {
-      // toast by api-client
+    } catch (err) {
+      extractSideErrors(err);
     }
   };
 
   const handleUpdateSteps = async (routingId: string, steps: StepPayload[]) => {
+    setSideErrors([]);
     try {
       await api.put(`/api/routing/${routingId}`, { steps });
       toast.success("Маршрут сохранён");
       if (selectedItemId) loadRoutings(selectedItemId);
-    } catch {
-      // toast by api-client
+    } catch (err) {
+      extractSideErrors(err);
     }
   };
 
   const handleActivate = async (routingId: string) => {
+    setSideErrors([]);
     try {
       await api.put(`/api/routing/${routingId}/activate`);
       toast.success("Маршрут активирован");
       if (selectedItemId) loadRoutings(selectedItemId);
-    } catch {
-      // toast by api-client
+    } catch (err) {
+      extractSideErrors(err);
     }
   };
 
@@ -141,6 +155,7 @@ export function RoutingConstructor() {
             routings={routings}
             processes={processes}
             loading={loading}
+            sideErrors={sideErrors}
             onCreateRouting={handleCreateRouting}
             onUpdateSteps={handleUpdateSteps}
             onActivate={handleActivate}

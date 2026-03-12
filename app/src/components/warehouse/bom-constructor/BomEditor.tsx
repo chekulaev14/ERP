@@ -4,9 +4,11 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { SideBadge } from "@/components/ui/side-badge";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { itemTypeLabels, typeColors } from "@/lib/constants";
 import type { NomenclatureItem } from "@/lib/types";
+import type { SideValidationError } from "@/services/helpers/validate-side";
 import type { BomVersion } from "./BomConstructor";
 
 interface EditLine {
@@ -19,13 +21,14 @@ interface Props {
   allItems: NomenclatureItem[];
   versions: BomVersion[];
   loading: boolean;
+  sideErrors?: SideValidationError[];
   onCreateDraft: (lines: EditLine[]) => void;
   onUpdateDraft: (bomId: string, lines: EditLine[]) => void;
   onActivate: (bomId: string) => void;
   onDeleteDraft: (bomId: string) => void;
 }
 
-export function BomEditor({ item, allItems, versions, loading, onCreateDraft, onUpdateDraft, onActivate, onDeleteDraft }: Props) {
+export function BomEditor({ item, allItems, versions, loading, sideErrors = [], onCreateDraft, onUpdateDraft, onActivate, onDeleteDraft }: Props) {
   const [lines, setLines] = useState<EditLine[]>([]);
   const [isDirty, setIsDirty] = useState(false);
 
@@ -121,6 +124,15 @@ export function BomEditor({ item, allItems, versions, loading, onCreateDraft, on
         </div>
       </div>
 
+      {/* Ошибки side-валидации */}
+      {sideErrors.length > 0 && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 space-y-0.5">
+          {sideErrors.map((e, i) => (
+            <div key={i}>{e.message}</div>
+          ))}
+        </div>
+      )}
+
       {/* Строки состава */}
       <div className="border border-border rounded-lg bg-card overflow-hidden">
         <div className="grid grid-cols-[1fr_100px_40px] gap-2 px-3 py-2 bg-muted/30 text-xs text-muted-foreground font-medium border-b border-border">
@@ -136,14 +148,16 @@ export function BomEditor({ item, allItems, versions, loading, onCreateDraft, on
         ) : (
           lines.map((line, idx) => {
             const comp = allItems.find((i) => i.id === line.componentItemId);
+            const lineHasError = sideErrors.some((e) => e.componentIndex === idx);
             return (
-              <div key={line.componentItemId} className="grid grid-cols-[1fr_100px_40px] gap-2 items-center px-3 py-2 border-b border-border/50">
+              <div key={line.componentItemId} className={`grid grid-cols-[1fr_100px_40px] gap-2 items-center px-3 py-2 border-b ${lineHasError ? "border-red-200 bg-red-50" : "border-border/50"}`}>
                 <div className="flex items-center gap-1.5 min-w-0">
                   {comp && (
                     <Badge variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${typeColors[comp.type]}`}>
                       {itemTypeLabels[comp.type]}
                     </Badge>
                   )}
+                  <SideBadge side={comp?.side} />
                   <span className="text-sm text-foreground truncate">{comp?.name ?? line.componentItemId}</span>
                   {comp && <span className="text-[10px] text-muted-foreground font-mono shrink-0">{comp.code}</span>}
                 </div>

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { ServiceError } from "@/lib/api/handle-route-error";
 import { toNumber } from "./helpers/serialize";
+import { validateRoutingStepsSide } from "./helpers/validate-side";
 import type { StepPayload } from "@/lib/schemas/routing.schema";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -102,6 +103,7 @@ export async function createRouting(itemId: string, steps: StepPayload[]) {
   if (!item) throw new ServiceError("Позиция не найдена", 404);
 
   validateSteps(steps, itemId);
+  await validateStepsSideFromPayload(steps);
 
   const maxVersion = await prisma.routing.aggregate({
     where: { itemId },
@@ -146,6 +148,7 @@ export async function updateRoutingSteps(routingId: string, steps: StepPayload[]
   }
 
   validateSteps(steps, routing.itemId);
+  await validateStepsSideFromPayload(steps);
 
   return prisma.$transaction(async (tx) => {
     await tx.routingStep.deleteMany({ where: { routingId } });
@@ -187,8 +190,11 @@ export async function activateRouting(routingId: string) {
       include: {
         steps: {
           include: {
-            outputItem: true,
-            inputs: true,
+            outputItem: { select: { id: true, name: true, side: true } },
+            inputs: {
+              orderBy: { sortOrder: "asc" },
+              include: { item: { select: { id: true, name: true, side: true } } },
+            },
           },
         },
       },
@@ -211,6 +217,17 @@ export async function activateRouting(routingId: string) {
         throw new ServiceError(`Шаг ${s.stepNo} не имеет входов`, 400);
       }
     }
+
+    // Проверка side-совместимости
+    validateRoutingStepsSide(
+      routing.steps.map((s) => ({
+        stepNo: s.stepNo,
+        outputItem: { name: s.outputItem?.name ?? "", side: s.outputItem?.side ?? "NONE" },
+        inputs: s.inputs.map((inp) => ({
+          item: { name: inp.item?.name ?? "", side: inp.item?.side ?? "NONE" },
+        })),
+      })),
+    );
 
     // Проверка: для каждого outputItemId не должно быть другого ACTIVE producing step
     for (const s of routing.steps) {
@@ -342,6 +359,35 @@ function validateSteps(steps: StepPayload[], itemId: string) {
       }
     }
   }
+}
+
+/** Загрузить items по ID и вызвать side-валидацию для StepPayload[] */
+async function validateStepsSideFromPayload(steps: StepPayload[]) {
+  const allItemIds = new Set<string>();
+  for (const s of steps) {
+    allItemIds.add(s.outputItemId);
+    for (const inp of s.inputs) allItemIds.add(inp.itemId);
+  }
+
+  const items = await prisma.item.findMany({
+    where: { id: { in: [...allItemIds] } },
+    select: { id: true, name: true, side: true },
+  });
+  const itemMap = new Map(items.map((it) => [it.id, it]));
+
+  validateRoutingStepsSide(
+    steps.map((s) => {
+      const outputItem = itemMap.get(s.outputItemId);
+      return {
+        stepNo: s.stepNo,
+        outputItem: { name: outputItem?.name ?? "", side: outputItem?.side ?? "NONE" },
+        inputs: s.inputs.map((inp) => {
+          const item = itemMap.get(inp.itemId);
+          return { item: { name: item?.name ?? "", side: item?.side ?? "NONE" } };
+        }),
+      };
+    }),
+  );
 }
 
 // --- Legacy aliases (для обратной совместимости в API routes) ---
