@@ -18,7 +18,7 @@ export async function POST(request: Request) {
       itemId,
       workers,
       clientOperationKey,
-      createdById: auth.actorId || undefined,
+      createdById: auth.role === "WORKER" ? undefined : (auth.actorId || undefined),
     });
 
     return NextResponse.json({
