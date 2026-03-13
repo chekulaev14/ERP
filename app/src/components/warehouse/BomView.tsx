@@ -251,12 +251,6 @@ export function BomView({ item, balances }: Props) {
                     </div>
                   </div>
                 )}
-                {item.type === "product" && item.weight && (
-                  <div>
-                    <span className="text-muted-foreground text-xs">Вес:</span>
-                    <span className="text-foreground text-base ml-1">{item.weight} кг</span>
-                  </div>
-                )}
                 {item.pricePerUnit && (
                   <div>
                     <span className="text-muted-foreground text-xs">Расценка:</span>

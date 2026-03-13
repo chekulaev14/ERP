@@ -81,7 +81,6 @@ export function CatalogScreen({ workerName, workerId, onLogout, onSubmit }: Cata
       description: blank.description,
       images: blank.images,
       pricePerUnit: 0,
-      weight: blank.weight,
     };
     setView({ type: "partDetail", part: asPart, product: blank, fromBlanks: true });
   };
@@ -151,7 +150,7 @@ export function CatalogScreen({ workerName, workerId, onLogout, onSubmit }: Cata
                 {view.category.products.map((product) => (
                   <Card key={product.id} className="bg-card border-border cursor-pointer hover:border-ring active:bg-accent transition-all overflow-hidden"
                     onClick={() => {
-                      const asPart: Part = { id: product.id, name: product.name + sideLabel(product.side), description: product.description, images: product.images, pricePerUnit: 0, weight: product.weight };
+                      const asPart: Part = { id: product.id, name: product.name + sideLabel(product.side), description: product.description, images: product.images, pricePerUnit: 0 };
                       setView({ type: "partDetail", part: asPart, product, fromProducts: view.category });
                     }}>
                     <div className="aspect-square relative"><img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" /></div>

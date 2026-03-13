@@ -46,12 +46,20 @@ export function NomenclatureTab({ items, balances }: Props) {
 
   // Потенциал
   const [potentialMap, setPotentialMap] = useState<Record<string, number>>({});
+  const [bottleneckMap, setBottleneckMap] = useState<Record<string, string>>({});
   const fetchPotential = useCallback(() => {
     api.get<{ items: PotentialItem[] }>("/api/stock/potential", { silent: true })
       .then((d) => {
         const map: Record<string, number> = {};
-        for (const p of d.items) map[p.itemId] = p.potential;
+        const bnMap: Record<string, string> = {};
+        for (const p of d.items) {
+          map[p.itemId] = p.canProduce;
+          if (p.canProduce === 0 && p.bottleneck) {
+            bnMap[p.itemId] = p.bottleneck.name;
+          }
+        }
         setPotentialMap(map);
+        setBottleneckMap(bnMap);
       })
       .catch(() => {});
   }, []);
@@ -83,7 +91,6 @@ export function NomenclatureTab({ items, balances }: Props) {
     const parsed = createItemSchema.safeParse({
       ...nomData,
       pricePerUnit: nomData.pricePerUnit ? Number(nomData.pricePerUnit) : null,
-      weight: nomData.weight ? Number(nomData.weight) : null,
       categoryId: nomData.categoryId || null,
       description: nomData.description || null,
     });
@@ -94,37 +101,68 @@ export function NomenclatureTab({ items, balances }: Props) {
 
     setAddSaving(true);
     try {
-      const created = await api.post<{ id: string }>("/api/nomenclature", parsed.data);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await api.post<any>("/api/nomenclature", parsed.data);
       const qty = Number(quantity);
-      if (qty > 0) {
-        await api.post("/api/stock", {
-          action: "SUPPLIER_INCOME",
-          itemId: created.id,
-          quantity: qty,
-          comment: "Начальный остаток",
-        });
+
+      if (result.paired) {
+        // Создана пара LEFT + RIGHT
+        for (const item of result.items) {
+          if (qty > 0) {
+            await api.post("/api/stock", {
+              action: "SUPPLIER_INCOME",
+              itemId: item.id,
+              quantity: qty,
+              comment: "Начальный остаток",
+            });
+          }
+          const savedQty = qty > 0 ? qty : 0;
+          setSavedQuantities((prev) => ({ ...prev, [item.id]: savedQty }));
+          const sideLabel = item.side === "LEFT" ? " (Л)" : " (П)";
+          setSessionItems((prev) => [
+            ...prev,
+            {
+              id: item.id,
+              name: addForm.name.trim() + sideLabel,
+              typeId: addForm.typeId,
+              unitId: addForm.unitId,
+              quantity: quantity || "0",
+              pricePerUnit: addForm.pricePerUnit,
+            },
+          ]);
+        }
+        toast.success(`«${addForm.name.trim()}» — создана пара Л/П`);
+      } else {
+        // Обычное создание
+        if (qty > 0) {
+          await api.post("/api/stock", {
+            action: "SUPPLIER_INCOME",
+            itemId: result.id,
+            quantity: qty,
+            comment: "Начальный остаток",
+          });
+        }
+        const savedQty = qty > 0 ? qty : 0;
+        setSavedQuantities((prev) => ({ ...prev, [result.id]: savedQty }));
+        setSessionItems((prev) => [
+          ...prev,
+          {
+            id: result.id,
+            name: addForm.name.trim(),
+            typeId: addForm.typeId,
+            unitId: addForm.unitId,
+            quantity: quantity || "0",
+            pricePerUnit: addForm.pricePerUnit,
+          },
+        ]);
+        toast.success(`«${addForm.name.trim()}» создано`);
       }
-      const savedQty = qty > 0 ? qty : 0;
-      setSavedQuantities((prev) => ({ ...prev, [created.id]: savedQty }));
-      setSessionItems((prev) => [
-        ...prev,
-        {
-          id: created.id,
-          name: addForm.name.trim(),
-          typeId: addForm.typeId,
-          unitId: addForm.unitId,
-          quantity: quantity || "0",
-          pricePerUnit: addForm.pricePerUnit,
-          weight: addForm.weight,
-        },
-      ]);
       setAddForm({
         ...emptyItemFormValues,
         typeId: addForm.typeId,
         unitId: addForm.unitId,
       });
       setFormKey((k) => k + 1);
-      toast.success(`«${addForm.name.trim()}» создано`);
     } catch {
       // toast shown by api-client
     } finally {
@@ -152,7 +190,6 @@ export function NomenclatureTab({ items, balances }: Props) {
         typeId: item.typeId,
         unitId: item.unitId,
         pricePerUnit: item.pricePerUnit ? Number(item.pricePerUnit) : null,
-        weight: item.weight ? Number(item.weight) : null,
       });
     } catch {
       // toast shown by api-client
@@ -265,7 +302,7 @@ export function NomenclatureTab({ items, balances }: Props) {
                 <TableRow className="border-border hover:bg-transparent">
                   <TableHead className="text-muted-foreground text-sm font-medium h-8 pl-10">Наименование</TableHead>
                   <TableHead className="text-muted-foreground text-sm font-medium h-8 w-20 text-right">Остаток</TableHead>
-                  <TableHead className="text-muted-foreground text-sm font-medium h-8 w-24 text-right">Потенциал</TableHead>
+                  <TableHead className="text-muted-foreground text-sm font-medium h-8 w-24 text-right">Можно произвести</TableHead>
                   <TableHead className="text-muted-foreground text-sm font-medium h-8 w-12 text-right">Ед.</TableHead>
                 </TableRow>
               </TableHeader>
@@ -281,9 +318,6 @@ export function NomenclatureTab({ items, balances }: Props) {
                         <p className="text-foreground text-sm font-medium flex items-center gap-1">
                           <SideBadge side={item.side} />
                           {item.name}
-                          {item.type === "product" && item.weight ? (
-                            <span className="text-muted-foreground text-xs font-normal ml-2">{item.weight} кг</span>
-                          ) : null}
                         </p>
                       </div>
                     </TableCell>
@@ -296,6 +330,11 @@ export function NomenclatureTab({ items, balances }: Props) {
                       {item.type !== "material" && potentialMap[item.id] !== undefined ? (
                         <span className={`text-sm font-mono ${potentialMap[item.id] > 0 ? "text-emerald-600" : "text-muted-foreground"}`}>
                           {formatNumber(potentialMap[item.id])}
+                          {potentialMap[item.id] === 0 && bottleneckMap[item.id] && (
+                            <span className="text-red-400 text-[10px] font-sans font-normal ml-1" title={`Не хватает: ${bottleneckMap[item.id]}`}>
+                              ({bottleneckMap[item.id]})
+                            </span>
+                          )}
                         </span>
                       ) : (
                         <span className="text-muted-foreground text-sm">—</span>

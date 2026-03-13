@@ -16,7 +16,6 @@ export interface SessionItem {
   unitId: string;
   quantity: string;
   pricePerUnit: string;
-  weight: string;
 }
 
 interface Props {

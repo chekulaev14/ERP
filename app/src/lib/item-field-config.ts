@@ -74,6 +74,17 @@ export const itemFieldConfig: ItemFieldConfig[] = [
     editable: () => false,
   },
   {
+    key: "side",
+    label: "Сторона",
+    type: "select",
+    options: [
+      { value: "NONE", label: "Без стороны" },
+      { value: "LEFT", label: "Левая + Правая" },
+    ],
+    visible: (mode) => mode === "create",
+    editable: (mode) => mode === "create",
+  },
+  {
     key: "quantity",
     label: "Начальный остаток",
     type: "number",
@@ -88,15 +99,6 @@ export const itemFieldConfig: ItemFieldConfig[] = [
     type: "number",
     placeholder: "—",
     numberProps: { step: "0.01", width: "w-28" },
-    visible: () => true,
-    editable: () => true,
-  },
-  {
-    key: "weight",
-    label: "Вес, кг",
-    type: "number",
-    placeholder: "—",
-    numberProps: { step: "0.001", width: "w-28" },
     visible: () => true,
     editable: () => true,
   },

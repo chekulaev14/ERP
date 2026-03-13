@@ -10,7 +10,6 @@ interface ComponentInput {
   unit: string;
   description?: string;
   pricePerUnit?: number;
-  weight?: number;
   quantity: number;
   isPaired?: boolean;
 }
@@ -19,7 +18,6 @@ interface ProductInput {
   name: string;
   unit: string;
   description?: string;
-  weight?: number;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -42,7 +40,6 @@ async function createItemsAndBom(tx: any, productId: string, components: Compone
           description: comp.description || null,
           images: [],
           pricePerUnit: comp.pricePerUnit ?? null,
-          weight: comp.weight ?? null,
         },
       });
       itemId = item.id;
@@ -78,7 +75,6 @@ export async function createSingleProduct(product: ProductInput, components: Com
         typeId: "product",
         unitId: product.unit || "pcs",
         description: product.description || null,
-        weight: product.weight ?? null,
         images: [],
       },
     });
@@ -117,7 +113,6 @@ export async function createPairedProducts(product: ProductInput, components: Co
             description: comp.description || null,
             images: [],
             pricePerUnit: comp.pricePerUnit ?? null,
-            weight: comp.weight ?? null,
             side: "NONE",
           },
         });
@@ -143,8 +138,7 @@ export async function createPairedProducts(product: ProductInput, components: Co
           typeId: "product",
           unitId: product.unit || "pcs",
           description: product.description || null,
-          weight: product.weight ?? null,
-          images: [],
+            images: [],
           side,
           baseItemId: side === "RIGHT" ? productIds[0] : null,
         },
@@ -171,8 +165,7 @@ export async function createPairedProducts(product: ProductInput, components: Co
               description: comp.description || null,
               images: [],
               pricePerUnit: comp.pricePerUnit ?? null,
-              weight: comp.weight ?? null,
-              side,
+                side,
               baseItemId: side === "RIGHT" ? leftIds.get(comp.tempId) ?? null : null,
             },
           });

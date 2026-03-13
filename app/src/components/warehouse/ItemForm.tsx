@@ -16,7 +16,7 @@ export interface ItemFormValues {
   unitId: string;
   categoryId: string;
   pricePerUnit: string;
-  weight: string;
+  side: string;
   quantity: string;
 }
 
@@ -40,7 +40,7 @@ export const emptyItemFormValues: ItemFormValues = {
   unitId: "kg",
   categoryId: "",
   pricePerUnit: "",
-  weight: "",
+  side: "NONE",
   quantity: "",
 };
 
@@ -51,7 +51,6 @@ export function itemFormValuesFromItem(item: {
   unit: string;
   category?: string | null;
   pricePerUnit?: number | null;
-  weight?: number | null;
 }): ItemFormValues {
   return {
     name: item.name,
@@ -60,7 +59,7 @@ export function itemFormValuesFromItem(item: {
     unitId: item.unit,
     categoryId: item.category || "",
     pricePerUnit: item.pricePerUnit?.toString() || "",
-    weight: item.weight?.toString() || "",
+    side: "NONE",
     quantity: "",
   };
 }
@@ -74,7 +73,7 @@ export function ItemForm({ mode, values, onChange, onSubmit, onCancel, saving, t
 
   const visibleFields = itemFieldConfig.filter((f) => {
     if (!f.visible(mode)) return false;
-    if (f.key === "weight" && values.typeId !== "blank") return false;
+    if (f.key === "side" && values.typeId === "material") return false;
     if (f.key === "quantity" && values.typeId !== "material") return false;
     return true;
   });
@@ -86,6 +85,7 @@ export function ItemForm({ mode, values, onChange, onSubmit, onCancel, saving, t
     const next = { ...values, [key]: value };
     if (key === "typeId") {
       next.unitId = value === "material" ? "kg" : "pcs";
+      if (value === "material") next.side = "NONE";
     }
     onChange(next);
   };

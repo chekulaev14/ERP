@@ -7,7 +7,6 @@ interface CatalogPart {
   description: string;
   images: string[];
   pricePerUnit: number;
-  weight: number | null;
 }
 
 interface CatalogProduct {
@@ -16,7 +15,6 @@ interface CatalogProduct {
   description: string;
   images: string[];
   side: string;
-  weight: number | null;
   parts: CatalogPart[];
 }
 
@@ -60,7 +58,6 @@ export async function getCatalog(): Promise<CatalogData> {
       description: entry.child.description || "",
       images: entry.child.images.length > 0 ? entry.child.images : [fallbackImg],
       pricePerUnit: Number(entry.child.pricePerUnit) || 0,
-      weight: toNumber(entry.child.weight),
     });
     bomMap.set(entry.parentId, children);
   }
@@ -72,7 +69,6 @@ export async function getCatalog(): Promise<CatalogData> {
     description: p.description || "",
     images: p.images.length > 0 ? p.images : [fallbackImg],
     side: p.side || "NONE",
-    weight: toNumber(p.weight),
     parts: bomMap.get(p.id) || [],
   });
 

@@ -50,9 +50,38 @@ export async function createItem(data: {
   categoryId?: string | null;
   description?: string | null;
   pricePerUnit?: number | null;
-  weight?: number | null;
+  side?: string;
 }) {
   const typeId = data.typeId || "material";
+  const side = data.side || "NONE";
+
+  // Если выбрана сторона — создаём пару (LEFT + RIGHT)
+  if (side !== "NONE" && typeId !== "material") {
+    const items = await prisma.$transaction(async (tx) => {
+      const baseData = {
+        name: data.name,
+        typeId,
+        unitId: data.unitId || "pcs",
+        categoryId: data.categoryId || null,
+        description: data.description || null,
+        images: [] as string[],
+        pricePerUnit: data.pricePerUnit ?? null,
+      };
+
+      const leftCode = await getNextCode(tx, toCodeKind(typeId));
+      const left = await tx.item.create({
+        data: { id: crypto.randomUUID(), code: leftCode, ...baseData, side: "LEFT" },
+      });
+
+      const rightCode = await getNextCode(tx, toCodeKind(typeId));
+      const right = await tx.item.create({
+        data: { id: crypto.randomUUID(), code: rightCode, ...baseData, side: "RIGHT", baseItemId: left.id },
+      });
+
+      return [left, right];
+    });
+    return { paired: true, items: items.map(mapItem) };
+  }
 
   const created = await prisma.$transaction(async (tx) => {
     const code = data.code || await getNextCode(tx, toCodeKind(typeId));
@@ -67,7 +96,6 @@ export async function createItem(data: {
         description: data.description || null,
         images: [],
         pricePerUnit: data.pricePerUnit ?? null,
-        weight: data.weight ?? null,
       },
     });
   });

@@ -33,17 +33,17 @@ export async function POST(request: Request) {
     const parsed = parseBody(createItemSchema, body);
     if (!parsed.success) return parsed.response;
 
-    const item = await nomenclatureService.createItem({
+    const result = await nomenclatureService.createItem({
       name: parsed.data.name,
       typeId: parsed.data.typeId,
       unitId: parsed.data.unitId,
       categoryId: parsed.data.categoryId ?? null,
       description: parsed.data.description ?? null,
       pricePerUnit: parsed.data.pricePerUnit ?? null,
-      weight: parsed.data.weight ?? null,
+      side: parsed.data.side,
     });
 
-    return NextResponse.json(item, { status: 201 });
+    return NextResponse.json(result, { status: 201 });
   } catch (err) {
     return handleRouteError(err);
   }
