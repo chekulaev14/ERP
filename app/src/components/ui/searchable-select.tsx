@@ -31,7 +31,7 @@ export function SearchableSelect<T>({
   filterFn,
   placeholder = "Поиск...",
   disabled = false,
-  maxItems = 20,
+  maxItems = 100,
   className,
 }: SearchableSelectProps<T>) {
   const [query, setQuery] = useState("")
@@ -56,11 +56,14 @@ export function SearchableSelect<T>({
   const updatePosition = useCallback(() => {
     if (!inputRef.current) return
     const rect = inputRef.current.getBoundingClientRect()
+    const availableBelow = window.innerHeight - rect.bottom - 8
+    const maxH = Math.max(availableBelow, 120)
     setDropdownStyle({
       position: "fixed",
       top: rect.bottom + 4,
       left: rect.left,
       width: rect.width,
+      maxHeight: maxH,
       zIndex: 9999,
     })
   }, [])
@@ -124,7 +127,7 @@ export function SearchableSelect<T>({
     <div
       ref={dropdownRef}
       style={dropdownStyle}
-      className="bg-popover border border-border rounded-md max-h-48 overflow-y-auto shadow-md"
+      className="bg-popover border border-border rounded-md overflow-y-auto shadow-md"
     >
       {visibleItems.map((item) => (
         <div

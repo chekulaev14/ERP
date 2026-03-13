@@ -56,6 +56,11 @@ QA:
 - Склад: http://localhost:3000/warehouse
 - Массовая загрузка: http://localhost:3000/warehouse/setup
 
+## Тестирование через Playwright
+
+- Логин: kontekst-rt@yandex.ru / admin123
+- Пароли пользователей хранятся в таблице users (поле password_hash, bcrypt). Посмотреть список: `SELECT email FROM users;`
+
 ## Разработка и деплой
 
 - После каждого изменения — спрашивать, нужно ли коммитить и пушить. и не пушить без команды!
