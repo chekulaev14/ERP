@@ -9,8 +9,8 @@ interface ItemInfo {
   unitId: string;
 }
 
-type BomChild = { childId: string; quantity: number };
-type BomMap = Map<string, BomChild[]>;
+type InputEntry = { itemId: string; qty: number };
+type RecipeMap = Map<string, { inputs: InputEntry[]; outputQty: number }>;
 type BalancesMap = Map<string, number>;
 type ItemsMap = Map<string, ItemInfo>;
 
@@ -21,15 +21,26 @@ interface ComputeResult {
   chain: PotentialBreakdown[];
 }
 
-function buildBomMap(entries: { parentId: string; childId: string; quantity: unknown }[]): BomMap {
-  const map: BomMap = new Map();
+/**
+ * Строит карту рецептов из активных маршрутов.
+ * Ключ — outputItemId шага, значение — входы + выход шага.
+ * Для каждого outputItem берётся producing step (последний шаг маршрута определяет конечное изделие,
+ * но промежуточные шаги тоже имеют свои рецепты).
+ */
+function buildRecipeMap(
+  steps: { outputItemId: string; outputQty: unknown; inputs: { itemId: string; qty: unknown }[] }[],
+): RecipeMap {
+  const map: RecipeMap = new Map();
 
-  for (const e of entries) {
-    const qty = toNumber(e.quantity as number) ?? 0;
-    if (qty <= 0) continue;
+  for (const step of steps) {
+    const outputQty = toNumber(step.outputQty as number) ?? 1;
+    const inputs: InputEntry[] = step.inputs
+      .map((inp) => ({ itemId: inp.itemId, qty: toNumber(inp.qty as number) ?? 0 }))
+      .filter((inp) => inp.qty > 0);
 
-    if (!map.has(e.parentId)) map.set(e.parentId, []);
-    map.get(e.parentId)!.push({ childId: e.childId, quantity: qty });
+    if (inputs.length > 0) {
+      map.set(step.outputItemId, { inputs, outputQty });
+    }
   }
 
   return map;
@@ -37,11 +48,11 @@ function buildBomMap(entries: { parentId: string; childId: string; quantity: unk
 
 /**
  * Рекурсивно считает доступное количество позиции:
- * available = balance + canProduce (из компонентов по BOM)
+ * available = balance + canProduce (из компонентов по маршруту)
  */
 function computeAvailable(
   itemId: string,
-  bomMap: BomMap,
+  recipeMap: RecipeMap,
   balances: BalancesMap,
   itemsMap: ItemsMap,
   visited: Set<string>,
@@ -52,9 +63,9 @@ function computeAvailable(
   visited.add(itemId);
 
   const balance = balances.get(itemId) ?? 0;
-  const children = bomMap.get(itemId);
+  const recipe = recipeMap.get(itemId);
 
-  if (!children || children.length === 0) {
+  if (!recipe) {
     return { available: balance, canProduce: 0, bottleneck: null, chain: [] };
   }
 
@@ -62,26 +73,28 @@ function computeAvailable(
   let bottleneck: Bottleneck | null = null;
   const chain: PotentialBreakdown[] = [];
 
-  for (const child of children) {
-    const childResult = computeAvailable(child.childId, bomMap, balances, itemsMap, new Set(visited));
-    const canProduceFromChild = Math.floor(childResult.available / child.quantity);
-    const childInfo = itemsMap.get(child.childId);
+  for (const input of recipe.inputs) {
+    const childResult = computeAvailable(input.itemId, recipeMap, balances, itemsMap, new Set(visited));
+    // Сколько выходных единиц можно сделать из доступного количества этого входа
+    const neededPerUnit = input.qty / recipe.outputQty;
+    const canProduceFromChild = neededPerUnit > 0 ? Math.floor(childResult.available / neededPerUnit) : 0;
+    const childInfo = itemsMap.get(input.itemId);
 
     chain.push({
-      itemId: child.childId,
+      itemId: input.itemId,
       name: childInfo?.name ?? "",
       quantity: canProduceFromChild,
-      balance: balances.get(child.childId) ?? 0,
-      neededPerUnit: child.quantity,
+      balance: balances.get(input.itemId) ?? 0,
+      neededPerUnit,
     });
 
     if (canProduceFromChild < minCanProduce) {
       minCanProduce = canProduceFromChild;
       bottleneck = {
-        itemId: child.childId,
+        itemId: input.itemId,
         name: childInfo?.name ?? "",
         balance: childResult.available,
-        neededPerUnit: child.quantity,
+        neededPerUnit,
       };
     }
   }
@@ -97,10 +110,17 @@ function computeAvailable(
 }
 
 export async function calculateAllPotentials(filterItemId?: string): Promise<PotentialItem[]> {
-  const [bomEntries, stockBalances, items] = await Promise.all([
-    prisma.bomEntry.findMany({
-      where: { parent: { deletedAt: null }, child: { deletedAt: null } },
-      select: { parentId: true, childId: true, quantity: true },
+  const [routingSteps, stockBalances, items] = await Promise.all([
+    // Берём все шаги из ACTIVE маршрутов с их входами
+    prisma.routingStep.findMany({
+      where: { routing: { status: "ACTIVE" } },
+      select: {
+        outputItemId: true,
+        outputQty: true,
+        inputs: {
+          select: { itemId: true, qty: true },
+        },
+      },
     }),
     prisma.stockBalance.findMany({
       where: { locationId: "MAIN" },
@@ -112,7 +132,7 @@ export async function calculateAllPotentials(filterItemId?: string): Promise<Pot
     }),
   ]);
 
-  const bomMap = buildBomMap(bomEntries);
+  const recipeMap = buildRecipeMap(routingSteps);
 
   const balances: BalancesMap = new Map();
   for (const sb of stockBalances) {
@@ -139,7 +159,7 @@ export async function calculateAllPotentials(filterItemId?: string): Promise<Pot
 
   for (const item of targetItems) {
     const balance = balances.get(item.id) ?? 0;
-    const result = computeAvailable(item.id, bomMap, balances, itemsMap, new Set());
+    const result = computeAvailable(item.id, recipeMap, balances, itemsMap, new Set());
 
     results.push({
       itemId: item.id,
