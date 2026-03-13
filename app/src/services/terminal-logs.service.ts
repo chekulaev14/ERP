@@ -3,6 +3,7 @@ import { toNumber } from "./helpers/serialize";
 
 interface LogEntry {
   id: string;
+  workerId: string;
   workerName: string;
   itemName: string;
   quantity: number;
@@ -61,6 +62,7 @@ export async function getProductionLogs(params: {
   for (const l of newLogs) {
     allLogs.push({
       id: l.id,
+      workerId: l.workerId,
       workerName: l.worker.name,
       itemName: l.productionOperation.item.name,
       quantity: toNumber(l.quantity),
@@ -77,6 +79,7 @@ export async function getProductionLogs(params: {
     if (!newLogTimes.has(l.createdAt.getTime())) {
       allLogs.push({
         id: l.id,
+        workerId: l.workerId,
         workerName: l.worker.name,
         itemName: l.itemName,
         quantity: l.quantity,
@@ -90,12 +93,12 @@ export async function getProductionLogs(params: {
   // Сортировка по дате desc
   allLogs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
-  // Summary
-  const summaryMap: Record<string, { name: string; count: number; total: number }> = {};
+  // Summary — группировка по workerId
+  const summaryMap: Record<string, WorkerSummary> = {};
   for (const log of allLogs) {
-    const key = log.workerName;
+    const key = log.workerId;
     if (!summaryMap[key]) {
-      summaryMap[key] = { name: log.workerName, count: 0, total: 0 };
+      summaryMap[key] = { workerId: key, name: log.workerName, count: 0, total: 0 };
     }
     summaryMap[key].count += log.quantity;
     summaryMap[key].total += log.total;
@@ -103,9 +106,6 @@ export async function getProductionLogs(params: {
 
   return {
     logs: allLogs,
-    summary: Object.entries(summaryMap).map(([, s]) => ({
-      workerId: "",
-      ...s,
-    })),
+    summary: Object.values(summaryMap),
   };
 }

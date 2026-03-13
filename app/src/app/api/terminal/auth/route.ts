@@ -5,21 +5,24 @@ import { handleRouteError } from "@/lib/api/handle-route-error";
 
 export async function POST(request: Request) {
   try {
-    const { pin } = await request.json();
+    const { pin, verifyOnly } = await request.json();
 
     const result = await loginByPin(pin);
     if (!result) {
       return NextResponse.json({ error: "Неверный PIN-код" }, { status: 401 });
     }
 
-    const token = await createToken(result.auth);
     const response = NextResponse.json({
       id: result.auth.actorId,
       name: result.name,
       role: result.auth.role,
     });
 
-    response.headers.set("Set-Cookie", buildCookieHeader(token, result.auth.role));
+    if (!verifyOnly) {
+      const token = await createToken(result.auth);
+      response.headers.set("Set-Cookie", buildCookieHeader(token, result.auth.role));
+    }
+
     return response;
   } catch (err) {
     return handleRouteError(err);

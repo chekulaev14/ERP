@@ -61,20 +61,20 @@ export function WorkersStep({
 
   const verifyPin = async (pin: string) => {
     try {
-      const data = await api.post<{ workerId: string; name: string }>(
+      const data = await api.post<{ id: string; name: string; role: string }>(
         "/api/terminal/auth",
-        { pin },
+        { pin, verifyOnly: true },
         { silent: true },
       );
 
       // Проверить что этот рабочий ещё не добавлен
-      if (workers.some((w) => w.workerId === data.workerId)) {
+      if (workers.some((w) => w.workerId === data.id)) {
         setPinError("Этот рабочий уже добавлен");
         setPinInput("");
         return;
       }
 
-      setPendingPartner({ workerId: data.workerId, workerName: data.name });
+      setPendingPartner({ workerId: data.id, workerName: data.name });
       setShowPinPad(false);
       setPinInput("");
       setPartnerQty("");
