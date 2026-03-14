@@ -50,7 +50,7 @@ jobs:
             public \
             prisma \
             package.json \
-            node_modules/.prisma \
+            src/generated/prisma \
             node_modules/prisma \
             node_modules/@prisma
 
