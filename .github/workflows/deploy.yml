@@ -12,6 +12,7 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
+      JWT_SECRET: build-time-dummy-secret
 
     steps:
       - name: Checkout
