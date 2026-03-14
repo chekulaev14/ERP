@@ -46,14 +46,12 @@ jobs:
         run: |
           cd app
           tar -czf /tmp/release.tar.gz \
-            .next \
+            .next/standalone \
+            .next/static \
+            .next/BUILD_ID \
             public \
-            prisma \
-            prisma.config.ts \
-            package.json \
-            scripts/prisma-healthcheck.sh \
-            node_modules \
-            src/generated/prisma
+            prisma/migrations \
+            prisma/schema.prisma
 
       - name: Setup SSH
         run: |
