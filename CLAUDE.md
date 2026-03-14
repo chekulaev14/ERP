@@ -4,21 +4,21 @@
 
 ## Правило чтения файлов
 
-Старт сессии: PRODUCT.md, SYSTEM-DIAGRAM.md, CORE-ARCHITECTURE.md — читаются всегда (rule в .claude/rules/context.md).
+Старт сессии: docs/PRODUCT.md, docs/SYSTEM-DIAGRAM.md, docs/CORE-ARCHITECTURE.md — читаются всегда (rule в .claude/rules/context.md).
 
 Перед первым изменением кода — дополнительно прочитать файлы своего контура:
 
-- Backend: BACKEND-PRINCIPLES.md, похожий сервис в app/src/services/, schema.prisma
-- Frontend: FRONTEND-PRINCIPLES.md, ARCHITECTURE.md (секция Фронтенд), похожий компонент, lib/types.ts
-- БД/миграция: DB-PRINCIPLES.md, schema.prisma
-- Баг/ошибка: GOTCHA.md, SESSION-REPORT.md, файл из стека ошибки
-- Новая фича: ARCHITECTURE.md
-- Тестирование: QA-PRINCIPLES.md
-- Склад (UI/логика): LOGIC.md
+- Backend: docs/BACKEND-PRINCIPLES.md, похожий сервис в app/src/services/, schema.prisma
+- Frontend: docs/FRONTEND-PRINCIPLES.md, docs/ARCHITECTURE.md (секция Фронтенд), похожий компонент, lib/types.ts
+- БД/миграция: docs/DB-PRINCIPLES.md, schema.prisma
+- Баг/ошибка: docs/GOTCHA.md, файл из стека ошибки
+- Новая фича: docs/ARCHITECTURE.md
+- Тестирование: docs/QA-PRINCIPLES.md
+- Склад (UI/логика): docs/LOGIC.md
 
 ## Критичные принципы
 
-Полные правила — в *-PRINCIPLES.md. Ниже — то, что нельзя нарушать ни при каких обстоятельствах.
+Полные правила — в docs/*-PRINCIPLES.md. Ниже — то, что нельзя нарушать ни при каких обстоятельствах.
 
 Backend:
 - NEVER вызывай Prisma из route — только через service
@@ -48,7 +48,7 @@ QA:
 
 ## Старт сессии
 
-Проверить: PostgreSQL, app/.env, node_modules, prisma/schema.prisma, localhost:3000. Если что-то не так — сообщить, но не чинить без команды. При ошибках — читать GOTCHA.md.
+Проверить: PostgreSQL, app/.env, node_modules, prisma/schema.prisma, localhost:3000. Если что-то не так — сообщить, но не чинить без команды. При ошибках — читать docs/GOTCHA.md.
 
 ## Ссылки для работы
 
@@ -63,13 +63,20 @@ QA:
 
 ## Разработка и деплой
 
-- После каждого изменения — спрашивать, нужно ли коммитить и пушить. и не пушить без команды!
+- После каждого изменения — спрашивать, нужно ли коммитить и пушить. Не пушить без команды!
 - После каждого изменения — давать ссылку на локально запущенный сайт (http://localhost:3000).
 - Все изменения — только локально. Не редактировать код на сервере.
+- Перед пушем — убедиться что `npm run build` проходит локально.
 - GitHub: chekulaev14/ERP (публичный)
-- VPS: 82.22.47.114, папка /root/erp/, порт 8080
-- Автодеплой: push в main → webhook → билд и перезапуск на VPS
-- pm2 процесс: erp (порт 3000), nginx проксирует 8080 → 3000
+- VPS: 82.22.47.114 (Hostkey, Испания)
+- SSH: `ssh deploy@82.22.47.114` (root-доступ отключён, только SSH-ключи)
+- Автодеплой: push в main → GitHub Actions (.github/workflows/deploy.yml) собирает артефакт → scp на сервер → deploy-release.sh
+- Release-структура: /var/www/gorchev-v/ (releases/, current symlink, shared/.env)
+- pm2 процесс: gorchev-v (node .next/standalone/server.js), nginx проксирует 443 → 3000 (gorchev.agentiks.ru)
+- Rollback: `sudo /var/www/gorchev-v/rollback.sh` — переключает на предыдущий релиз
+- Логи деплоя: /var/log/gorchev-v/deploy.log, бэкапы БД: /var/www/gorchev-v/shared/backups/
+- Firewall (ufw): открыты только 22, 80, 443. PostgreSQL только на localhost.
+- VPN блокирует доступ к серверу. Обход: `sudo route add 82.22.47.114 192.168.1.1`
 
 ## Структура проекта
 
@@ -87,10 +94,7 @@ QA:
 - [app/prisma/](app/prisma/) — Prisma schema и миграции
 - [app/scripts/rebuild-balances.ts](app/scripts/rebuild-balances.ts) — пересчёт StockBalance (rebuild/reconcile)
 - [app/scripts/seed-demo-parts.ts](app/scripts/seed-demo-parts.ts) — демо-номенклатура кронштейнов (7 items, BOM, приход)
-- [PRODUCT.md](PRODUCT.md) — бизнес-логика, сущности, поведение системы
-- [CORE-ARCHITECTURE.md](CORE-ARCHITECTURE.md) — слои, зависимости, flow, инварианты, границы сервисов
-- [SYSTEM-DIAGRAM.md](SYSTEM-DIAGRAM.md) — визуальная карта: схемы архитектуры, data model, flows
-- [SESSION-REPORT.md](SESSION-REPORT.md) — отчёт последней сессии (что сделано, что проверить)
+- [docs/](docs/) — вся документация проекта (архитектура, принципы, планы)
 - [docker-compose.yml](docker-compose.yml) — app + PostgreSQL для деплоя
-- [CONSTRUCTOR-PIPELINE-V2.html](CONSTRUCTOR-PIPELINE-V2.html) — standalone-прототип конструктора цепочки (React Flow + dagre, план в CONSTRUCTOR-PLAN-V2.md)
+- [CONSTRUCTOR-PIPELINE-V2.html](CONSTRUCTOR-PIPELINE-V2.html) — standalone-прототип конструктора цепочки (React Flow + dagre, план в docs/CONSTRUCTOR-PLAN-V2.md)
 - [.env.example](.env.example) — шаблон переменных окружения
