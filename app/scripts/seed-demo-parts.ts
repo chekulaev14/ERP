@@ -42,7 +42,6 @@ const items = [
     typeId: "material",
     unitId: "kg",
     side: "NONE" as const,
-    weight: null,
     images: [] as string[],
   },
   {
@@ -52,7 +51,6 @@ const items = [
     typeId: "blank",
     unitId: "pcs",
     side: "NONE" as const,
-    weight: 3,
     images: [`${IMG}/plastina-kruka.jpeg`],
   },
   {
@@ -62,7 +60,6 @@ const items = [
     typeId: "blank",
     unitId: "pcs",
     side: "NONE" as const,
-    weight: 3,
     images: [`${IMG}/plastina-perf.jpeg`],
   },
   {
@@ -72,7 +69,6 @@ const items = [
     typeId: "blank",
     unitId: "pcs",
     side: "LEFT" as const,
-    weight: 3,
     images: [`${IMG}/kruk-gnuty.jpeg`],
   },
   {
@@ -83,7 +79,6 @@ const items = [
     unitId: "pcs",
     side: "RIGHT" as const,
     baseItemId: "demo-blk-hook-bent-l",
-    weight: 3,
     images: [`${IMG}/kruk-gnuty.jpeg`],
   },
   {
@@ -93,7 +88,6 @@ const items = [
     typeId: "product",
     unitId: "pcs",
     side: "LEFT" as const,
-    weight: 3,
     images: [`${IMG}/kronshtein.jpeg`],
   },
   {
@@ -104,7 +98,6 @@ const items = [
     unitId: "pcs",
     side: "RIGHT" as const,
     baseItemId: "demo-prod-bracket-l",
-    weight: 3,
     images: [`${IMG}/kronshtein.jpeg`],
   },
 ];
@@ -132,7 +125,7 @@ async function main() {
       update: {
         name: item.name,
         images: item.images,
-        weight: item.weight,
+
         side: item.side,
         baseItemId: "baseItemId" in item ? item.baseItemId : null,
       },
@@ -144,7 +137,7 @@ async function main() {
         unitId: item.unitId,
         side: item.side,
         baseItemId: "baseItemId" in item ? item.baseItemId : null,
-        weight: item.weight,
+
         images: item.images,
       },
     });
