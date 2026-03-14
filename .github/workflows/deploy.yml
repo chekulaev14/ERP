@@ -51,6 +51,7 @@ jobs:
             prisma \
             prisma.config.ts \
             package.json \
+            scripts/prisma-healthcheck.sh \
             node_modules \
             src/generated/prisma
 
