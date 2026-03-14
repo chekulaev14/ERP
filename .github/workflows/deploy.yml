@@ -49,6 +49,7 @@ jobs:
             .next \
             public \
             prisma \
+            prisma.config.ts \
             package.json \
             node_modules \
             src/generated/prisma
