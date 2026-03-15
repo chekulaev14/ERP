@@ -1,0 +1,10 @@
+[
+  {
+    "name": "test",
+    "path": ".claude/commands/test/SKILL.md",
+    "type": "atomic",
+    "group": "development",
+    "description": "Интерактивное тестирование ERP через Playwright",
+    "chain": null
+  }
+]
