@@ -1,7 +1,9 @@
-"use client";
-
-import { ChainConstructor } from "@/components/warehouse/constructor/ChainConstructor";
+'use client';
 
 export default function BuilderPage() {
-  return <ChainConstructor />;
+  return (
+    <div className="flex items-center justify-center h-64 text-muted-foreground">
+      Конструктор цепочки — в разработке
+    </div>
+  );
 }
